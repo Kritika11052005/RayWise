@@ -48,7 +48,7 @@ const Footer = () => {
                         <h3 className="text-xl font-semibold text-foreground mb-4">Gauri Sharma</h3>
                         <div className="flex justify-center space-x-4">
                             <a
-                                href="https://github.com/gaurisharma"
+                                href= "https://github.com/gauri-sharma9 "
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200"
@@ -57,14 +57,14 @@ const Footer = () => {
                                 <span className="text-sm">GitHub</span>
                             </a>
                             <a
-                                href="mailto:gaurisharma@gmail.com"
+                                href="https://mail.google.com/mail/?view=cm&fs=1&to=gaurisharma9104@gmail.com"
                                 className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200"
                             >
                                 <Mail className="w-4 h-4" />
                                 <span className="text-sm">Email</span>
                             </a>
                             <a
-                                href="https://linkedin.com/in/gaurisharma"
+                                href=" https://www.linkedin.com/in/gauri-sharma-7a48a6332/"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors duration-200"

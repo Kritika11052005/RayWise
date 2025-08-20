@@ -13,7 +13,7 @@ import ThemeToggle from "./ThemeToggler";
 
 export default function Header() {
   return (
-    <header className="flex justify-between items-center px-6 py-4 border-b h-16">
+    <header className="flex justify-between items-center px-6 py-4 h-16">
       {/* Shifted to the right with ml-16 */}
       <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity ml-16">
         <Sun className="h-6 w-6 text-orange-500" />
