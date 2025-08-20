@@ -150,3 +150,75 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
+/* Add this to your globals.css file */
+/* Add this to your globals.css file */
+
+/* Main modal and card styling */
+.cl-modal,
+.cl-card,
+.cl-signIn-start,
+.cl-signUp-start {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Header text visibility */
+.cl-headerTitle,
+.cl-headerSubtitle,
+.cl-formFieldLabel,
+.cl-formFieldHintText {
+  color: var(--foreground) !important;
+}
+
+/* Input fields */
+.cl-formFieldInput {
+  background-color: var(--input) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+
+/* Primary button (Continue) */
+.cl-formButtonPrimary {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+/* Social buttons (Google, Microsoft) */
+.cl-socialButtonsBlockButton {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--card-foreground) !important;
+}
+
+/* Footer text and links */
+.cl-footerActionText,
+.cl-footerActionLink,
+.cl-modalCloseButton {
+  color: var(--muted-foreground) !important;
+}
+
+.cl-footerActionLink {
+  color: var(--primary) !important;
+}
+
+/* Modal backdrop */
+.cl-modalBackdrop {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Bottom section (Secured by Clerk, Development mode) */
+.cl-internal-b3fm6y {
+  background-color: var(--card) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+/* All text elements */
+.cl-card * {
+  color: var(--foreground) !important;
+}
+
+/* Error messages */
+.cl-formFieldErrorText {
+  color: var(--destructive) !important;
+}
