@@ -48,7 +48,7 @@ import {
     X,
     ChevronLeft,
 } from "lucide-react";
-
+import RoofTopAnalyzer from '../components/RoofTopAnalyzer';
 const Dashboard = () => {
     const { user } = useUser();
     const [activeTab, setActiveTab] = useState("overview");
@@ -548,46 +548,11 @@ const Dashboard = () => {
                         )}
 
                         {activeTab === "upload" && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Upload Rooftop Image</CardTitle>
-                                    <CardDescription>
-                                        Upload an image of your rooftop for AI-powered solar analysis
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="border-2 border-dashed border-muted-foreground rounded-lg p-12 text-center">
-                                        <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                                        <h3 className="text-lg font-medium mb-2">Upload Rooftop Image</h3>
-                                        <p className="text-muted-foreground mb-4">
-                                            Drag and drop your image here, or click to browse
-                                        </p>
-                                        <label htmlFor="rooftop-file-upload" className="sr-only">
-                                            Choose File
-                                        </label>
-                                        <Button
-                                            onClick={handleFileUploadClick} // [New Code] Added onClick handler
-                                        >
-                                            Choose File
-                                        </Button>
-
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef} // [New Code] Added ref
-                                            onChange={handleFileChange} // [New Code] Added onChange handler
-                                            className="hidden" // [New Code] Hidden input
-                                            id="rooftop-file-upload" // This ID links the input to the label
-
-                                        />
-                                        {selectedFile && (
-                                            <div className="text-sm text-muted-foreground mt-2">
-                                                Selected file: {selectedFile.name}
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <div>
+                                <RoofTopAnalyzer />
+                            </div>
                         )}
+
 
                         {activeTab === "recommendations" && (
                             <Card>
