@@ -661,12 +661,12 @@ const RooftopAnalyzer = () => {
             ...result.analysis,
             totalPanels: Number(result.analysis.totalPanels),
             totalPowerKw: Number(result.analysis.totalPowerKw),
-            orientation: typeof result.analysis.orientation === 'string' 
-              ? result.analysis.orientation 
+            orientation: typeof result.analysis.orientation === 'string'
+              ? result.analysis.orientation
               : Number(result.analysis.orientation),
             annualProduction: Number(result.analysis.annualProduction),
           };
-          
+
           setAnalysis(typedAnalysis);
           setPanelLayout(result.panelLayout);
         } else {
@@ -834,17 +834,17 @@ const RooftopAnalyzer = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6 space-y-6">
-      <div className="bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg p-6 text-white">
+      <div className="bg-gradient-to-r from-orange-500 to-yellow-500 dark:from-orange-600 dark:to-yellow-600 rounded-lg p-6 text-white shadow-lg">
         <h2 className="text-3xl font-bold mb-2">AI Rooftop Analyzer</h2>
         <p className="text-white/90">Upload your rooftop image or fetch satellite view, set your location, draw the installation area, and get AI-powered solar panel layout with sun analysis</p>
       </div>
 
       {/* Image Source Selection Modal */}
       {showImageSourceModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-xl font-semibold mb-4">Get Rooftop Image</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-card rounded-lg p-6 max-w-md w-full mx-4 border border-border shadow-2xl">
+            <h3 className="text-xl font-semibold mb-4 text-foreground">Get Rooftop Image</h3>
+            <p className="text-sm text-muted-foreground mb-6">
               Choose how you want to provide your rooftop image for analysis.
             </p>
 
@@ -854,12 +854,12 @@ const RooftopAnalyzer = () => {
                   setShowImageSourceModal(false);
                   fileInputRef.current?.click();
                 }}
-                className="w-full flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 text-white px-4 py-4 rounded-lg font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white px-4 py-4 rounded-lg font-medium transition-colors shadow-md"
               >
                 <Upload className="w-5 h-5" />
                 <div className="text-left">
                   <div className="font-semibold">Upload Image</div>
-                  <div className="text-xs text-white/80">Upload your own rooftop photo</div>
+                  <div className="text-xs text-white/90">Upload your own rooftop photo</div>
                 </div>
               </button>
 
@@ -869,18 +869,18 @@ const RooftopAnalyzer = () => {
                   setImageSource('map');
                   setShowLocationModal(true);
                 }}
-                className="w-full flex items-center justify-center gap-3 bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-lg font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white px-4 py-4 rounded-lg font-medium transition-colors shadow-md"
               >
                 <Map className="w-5 h-5" />
                 <div className="text-left">
                   <div className="font-semibold">Fetch Satellite View</div>
-                  <div className="text-xs text-white/80">Get image from map using location</div>
+                  <div className="text-xs text-white/90">Get image from map using location</div>
                 </div>
               </button>
 
               <button
                 onClick={() => setShowImageSourceModal(false)}
-                className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors"
+                className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -891,10 +891,10 @@ const RooftopAnalyzer = () => {
 
       {/* Location Modal */}
       {showLocationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-xl font-semibold mb-4">Set Your Location</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-card rounded-lg p-6 max-w-md w-full mx-4 border border-border shadow-2xl">
+            <h3 className="text-xl font-semibold mb-4 text-foreground">Set Your Location</h3>
+            <p className="text-sm text-muted-foreground mb-4">
               {imageSource === 'map'
                 ? 'Enter your location to fetch satellite imagery of your rooftop.'
                 : 'Location helps AI analyze sun position, shadows, and optimal panel orientation for your area.'}
@@ -904,7 +904,7 @@ const RooftopAnalyzer = () => {
               <button
                 onClick={detectLocation}
                 disabled={detectingLocation}
-                className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-md"
               >
                 {detectingLocation ? (
                   <>
@@ -921,10 +921,10 @@ const RooftopAnalyzer = () => {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                  <div className="w-full border-t border-gray-300 dark:border-slate-600"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">OR</span>
+                  <span className="bg-card px-2 text-foreground">OR</span>
                 </div>
               </div>
 
@@ -934,9 +934,9 @@ const RooftopAnalyzer = () => {
                   value={locationInput}
                   onChange={(e) => setLocationInput(e.target.value)}
                   placeholder="Enter address (e.g., A-484, Sector 19, Noida, India)"
-                  className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-4 py-2 bg-background border-b-border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 text-foreground placeholder-muted-foreground"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Be specific for best results (street address, city, country)
                 </p>
               </div>
@@ -945,7 +945,7 @@ const RooftopAnalyzer = () => {
                 <button
                   onClick={handleLocationSubmit}
                   disabled={!locationInput.trim() || fetchingMapImage || detectingLocation}
-                  className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  className="flex-1 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-md"
                 >
                   {fetchingMapImage || detectingLocation ? (
                     <>
@@ -962,7 +962,7 @@ const RooftopAnalyzer = () => {
                     setImageSource('upload');
                   }}
                   disabled={fetchingMapImage || detectingLocation}
-                  className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors"
+                  className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -974,26 +974,26 @@ const RooftopAnalyzer = () => {
 
       {/* Location Display */}
       {location && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="bg-card rounded-lg p-4 border  border-border flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-orange-500" />
-            <span className="font-medium">
+            <MapPin className="w-5 h-5 text-orange-400" />
+            <span className="font-medium text-white">
               {location.city}, {location.country}
             </span>
             {location.lat && location.lon && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-300">
                 ({location.lat.toFixed(6)}, {location.lon.toFixed(6)})
               </span>
             )}
             {imageSource === 'map' && (
-              <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+              <span className="text-xs bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 px-2 py-1 rounded font-medium">
                 Satellite View
               </span>
             )}
           </div>
           <button
             onClick={() => setShowLocationModal(true)}
-            className="text-sm text-orange-500 hover:text-orange-600"
+            className="text-sm text-orange-400 hover:text-orange-300 font-medium"
           >
             Change
           </button>
@@ -1002,11 +1002,11 @@ const RooftopAnalyzer = () => {
 
       {/* Upload Section */}
       {!imageUrl && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 border-2 border-dashed border-gray-300 dark:border-gray-600">
+        <div className="bg-card rounded-lg shadow-lg p-8 border-2 border-dashed border-border">
           <div className="text-center">
-            <Map className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-xl font-semibold mb-2">Get Started</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">Choose how you want to provide your rooftop image</p>
+            <Map className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-xl font-semibold text-foreground mb-4">Get Started</h3>
+            <p className="text-muted-foreground mb-4">Choose how you want to provide your rooftop image</p>
             <input
               type="file"
               ref={fileInputRef}
@@ -1029,13 +1029,13 @@ const RooftopAnalyzer = () => {
       {imageUrl && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Canvas Section */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          <div className="lg:col-span-2 bg-card rounded-lg shadow-lg p-6 border border-border">
             <div className="mb-4 flex flex-wrap gap-2">
               <button
                 onClick={() => startDrawing('click')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${isDrawing && drawMode === 'click'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
+                  ? 'bg-orange-500 dark:bg-orange-600 text-white shadow-md'
+                  : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
                   }`}
               >
                 <MousePointer className="w-4 h-4" />
@@ -1043,9 +1043,9 @@ const RooftopAnalyzer = () => {
               </button>
               <button
                 onClick={() => startDrawing('freehand')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${isDrawing && drawMode === 'freehand'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${isDrawing && drawMode === 'click'
+                  ? 'bg-orange-500 dark:bg-orange-600 text-white shadow-md'
+                  : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
                   }`}
               >
                 <Square className="w-4 h-4" />
@@ -1077,16 +1077,16 @@ const RooftopAnalyzer = () => {
             </div>
 
             {/* Zoom Controls */}
-            <div className="mb-4 flex items-center gap-2 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg">
+            <div className="mb-4 flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 p-2 rounded-lg border border-gray-200 dark:border-slate-600">
               <button
                 onClick={handleZoomOut}
-                className="p-2 bg-white dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-lg transition-colors"
+                className="p-2 bg-white dark:bg-slate-600 hover:bg-gray-200 dark:hover:bg-slate-500 rounded-lg transition-colors shadow-sm"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-5 h-5" />
               </button>
               <div className="flex-1 text-center">
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {Math.round(zoomLevel * 100)}%
                 </span>
               </div>
@@ -1106,7 +1106,7 @@ const RooftopAnalyzer = () => {
               </button>
             </div>
 
-            <div className="relative border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <div className="relative border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900 shadow-inner">
               <img
                 ref={imageRef}
                 src={imageUrl}
@@ -1127,8 +1127,8 @@ const RooftopAnalyzer = () => {
             </div>
 
             {isDrawing && (
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-sm">
+              <div className="mt-4 p-4 bg-card border-border rounded-lg">
+                <p className="text-sm text-foreground">
                   {drawMode === 'click'
                     ? '🖱️ Click on the image to add points. Connect at least 3 points to form a polygon.'
                     : '🖊️ Click and drag to draw a freehand polygon around the installation area.'}
@@ -1143,19 +1143,19 @@ const RooftopAnalyzer = () => {
                 </p>
               </div>
             )}
-            
 
-                  
-                </div>
 
-                
-              
-            
+
+          </div>
+
+
+
+
 
           {/* Control Panel */}
           <div className="space-y-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">Analysis Controls</h3>
+            <div className="bg-card rounded-lg shadow-lg p-6 border border-border">
+              <h3 className="text-lg font-semibold mb-4 text-foreground">Analysis Controls</h3>
 
               <button
                 onClick={analyzeRooftop}
@@ -1180,7 +1180,7 @@ const RooftopAnalyzer = () => {
                 <button
                   onClick={handleSaveProject}
                   disabled={saving || !location || !imageUrl || polygonPoints.length < 3}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                  className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium transition-colors"
                 >
                   {saving ? (
                     <>
@@ -1247,7 +1247,7 @@ const RooftopAnalyzer = () => {
               </div>
 
               {polygonPoints.length < 3 && (
-                <p className="text-sm text-gray-500 mt-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
                   Draw a polygon area to enable analysis
                 </p>
               )}
@@ -1255,64 +1255,64 @@ const RooftopAnalyzer = () => {
 
             {/* Analysis Results */}
             {analysis && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <div className="bg-orange-50 dark:bg-orange-950/50 border-orange-200 dark:border-orange-800 rounded-lg shadow-lg p-6 ">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-foreground">
                   <Check className="w-5 h-5 text-green-500" />
                   Analysis Results
                 </h3>
 
                 <div className="space-y-3">
-                  <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Total Panels</p>
-                    <p className="text-2xl font-bold">{analysis.totalPanels}</p>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-700/50 rounded-lg border border-amber-200 dark:border-amber-600">
+                    <p className="text-xs text-foreground mb-1">Total Panels</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{analysis.totalPanels}</p>
                   </div>
 
-                  <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Total Power Output</p>
-                    <p className="text-2xl font-bold text-green-600">{analysis.totalPowerKw} kW</p>
+                  <div className="p-3 p-3 bg-amber-50 dark:bg-amber-700/50 rounded-lg border border-amber-200 dark:border-amber-600">
+                    <p className="text-xs text-foreground mb-1">Total Power Output</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{analysis.totalPowerKw} kW</p>
                   </div>
 
-                  <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Optimal Orientation</p>
-                    <p className="text-lg font-semibold">{analysis.orientation}°</p>
+                  <div className="p-3 p-3 bg-amber-50 dark:bg-amber-700/50 rounded-lg border border-amber-200 dark:border-amber-600">
+                    <p className="text-xs text-foreground mb-1">Optimal Orientation</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{analysis.orientation}°</p>
                   </div>
 
-                  <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Panel Layout</p>
-                    <p className="text-lg font-semibold">{analysis.layout}</p>
+                  <div className="p-3 p-3 bg-amber-50 dark:bg-amber-700/50 rounded-lg border border-amber-200 dark:border-amber-600">
+                    <p className="text-xs text-foreground mb-1">Panel Layout</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{analysis.layout}</p>
                   </div>
 
-                  <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Est. Annual Production</p>
-                    <p className="text-lg font-semibold">{analysis.annualProduction} kWh</p>
+                  <div className="p-3 p-3 bg-amber-50 dark:bg-amber-700/50 rounded-lg border border-amber-200 dark:border-amber-600">
+                    <p className="text-xs text-foreground mb-1">Est. Annual Production</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{analysis.annualProduction} kWh</p>
                   </div>
 
                   {analysis.sunAnalysis && (
-                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                      <p className="text-xs text-yellow-700 dark:text-yellow-400 mb-2">☀️ Sun Analysis</p>
-                      <p className="text-sm">{analysis.sunAnalysis}</p>
+                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-400">
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 font-semibold mb-2">☀️ Sun Analysis</p>
+                      <p className="text-sm text-foreground">{analysis.sunAnalysis}</p>
                     </div>
                   )}
 
                   {analysis.shadowAnalysis && (
-                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                      <p className="text-xs text-purple-700 dark:text-purple-400 mb-2">🌓 Shadow Analysis</p>
-                      <p className="text-sm">{analysis.shadowAnalysis}</p>
+                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+                      <p className="text-xs text-purple-700 dark:text-purple-300 font-semibold mb-2">🌓 Shadow Analysis</p>
+                      <p className="text-sm text-foreground">{analysis.shadowAnalysis}</p>
                     </div>
                   )}
 
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">💡 AI Recommendations</p>
-                    <p className="text-sm">{analysis.recommendations}</p>
+                  <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
+                    <p className="text-xs text-orange-700 dark:text-orange-300 font-semibold mb-2">💡 AI Recommendations</p>
+                    <p className="text-sm text-foreground">{analysis.recommendations}</p>
                   </div>
                 </div>
-              
-              {/* Show Recommendations Button in Sidebar */}
-              {/* Show Recommendations Button in Sidebar */}
-              {(currentProjectId || currentFinalizedId) && analysis && (
+
+                {/* Show Recommendations Button in Sidebar */}
+                {/* Show Recommendations Button in Sidebar */}
+                {(currentProjectId || currentFinalizedId) && analysis && (
                   <button
                     onClick={() => setShowRecommendations(!showRecommendations)}
-                    className="w-full mt-4 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                    className="w-full mt-4 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-yellow-500 dark:from-orange-600 dark:to-yellow-600 hover:from-orange-600 hover:to-yellow-600 dark:hover:from-orange-700 dark:hover:to-yellow-700 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-md"
                   >
                     <Zap className="w-5 h-5" />
                     {showRecommendations ? 'Hide' : 'View'} Solar Solutions & Installers
@@ -1324,7 +1324,7 @@ const RooftopAnalyzer = () => {
         </div>
       )}
       {/* Solar Recommendations Section - Full Width Below Grid */}
-      
+
       {showRecommendations && (currentProjectId || currentFinalizedId) && location && analysis && (
         <div className="mt-6">
           <SolarRecommendations

@@ -238,12 +238,21 @@ export const getUserSolutions = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
-    const user = await ctx.db
+    let user = await ctx.db
       .query("users")
       .withIndex("by_token_identifier", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
       .unique();
+
+    // Try by email if not found by token
+    if (!user && identity.email) {
+      const email = identity.email;
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .unique();
+    }
 
     if (!user) return [];
 

@@ -157,16 +157,31 @@ export const getUserFinalizedLayouts = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    
+    if (!identity) {
+      return [];
+    }
 
-    const user = await ctx.db
+    // Try to find user by token identifier
+    let user = await ctx.db
       .query("users")
       .withIndex("by_token_identifier", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
       .unique();
 
-    if (!user) return [];
+    // If no user found by token, try by email (with type guard)
+    if (!user && identity.email) {
+      const email = identity.email; // TypeScript now knows this is string
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .unique();
+    }
+
+    if (!user) {
+      return [];
+    }
 
     const layouts = await ctx.db
       .query("finalizedLayouts")
@@ -177,6 +192,7 @@ export const getUserFinalizedLayouts = query({
     return layouts;
   },
 });
+
 
 // Get a single finalized layout
 export const getFinalizedLayout = query({

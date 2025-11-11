@@ -262,12 +262,12 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
 
   if (showBudgetInput) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+      <div className="bg-card rounded-lg shadow-lg p-6 border border-border">
+        <h3 className="text-xl font-semibold text-foreground  mb-4 flex items-center gap-2">
           <DollarSign className="w-6 h-6 text-green-500" />
           Set Your Budget
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Enter your budget range to get AI-powered personalized recommendations for solar panels and installers.
         </p>
 
@@ -278,7 +278,7 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
               type="number"
               value={budget.min}
               onChange={(e) => setBudget({ ...budget, min: Number(e.target.value) })}
-              className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="10000"
             />
           </div>
@@ -289,13 +289,13 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
               type="number"
               value={budget.max}
               onChange={(e) => setBudget({ ...budget, max: Number(e.target.value) })}
-              className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="30000"
             />
           </div>
 
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
+          <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <p className="text-sm text-orange-700 dark:text-orange-300">
               💡 <strong>Tip:</strong> Your system requires {systemSpecs.totalPanels} panels 
               ({systemSpecs.systemSizeKw} kW). Typical costs range from $15,000-$35,000 including installation.
             </p>
@@ -332,10 +332,10 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 border border-gray-200 dark:border-gray-700 text-center">
+      <div className="bg-card rounded-lg shadow-lg p-12 border border-border text-center">
         <Loader2 className="w-12 h-12 animate-spin text-green-500 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold mb-2">Analyzing Your Requirements...</h3>
-        <p className="text-gray-600 dark:text-gray-400">
+        <h3 className="text-xl font-semibold  mb-2">Analyzing Your Requirements...</h3>
+        <p className="text-muted-foreground">
           Our AI is finding the best solar panels and installers for your location and budget
         </p>
       </div>
@@ -349,7 +349,7 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
   return (
     <div className="space-y-6">
       {/* Budget Display */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
+      <div className="bg-card rounded-lg shadow-lg p-4 border border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-green-500" />
@@ -387,17 +387,17 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
       )}
 
       {/* Recommended Panel Types */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+      <div className="bg-card rounded-lg shadow-lg p-6 border border-border">
+        <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
           <Zap className="w-6 h-6 text-yellow-500" />
           AI-Recommended Solar Panel Types
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Based on your system requirements, budget, and location
         </p>
 
         {recommendations.panels.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">
+          <p className="text-muted-foreground text-center py-4">
             No panel recommendations available. Try adjusting your budget.
           </p>
         ) : (
@@ -419,9 +419,9 @@ const handleUnsaveInstallerRecommendation = async (installer: InstallerRecommend
       </div>
 
       {/* Recommended Installers */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-blue-500" />
+      <div className="bg-card rounded-lg shadow-lg p-6 border border-border">
+        <h3 className="text-xl font-semibold  text-foreground mb-4 flex items-center gap-2">
+          <Building2 className="w-6 h-6 text-orange-500" />
           AI-Recommended Solar Installers
         </h3>
 
@@ -456,7 +456,7 @@ isSaving={savingRecommendation === `installer-${installer.company}`}
           {recommendations.globalInstallers.length > 0 && (
             <div>
               <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-500" />
+                <Globe className="w-5 h-5 text-orange-500" />
                 Global Installers (Available Worldwide)
               </h4>
               <div className="space-y-3">
@@ -479,7 +479,7 @@ isSaving={savingRecommendation === `installer-${installer.company}`}
           )}
 
           {recommendations.localInstallers.length === 0 && recommendations.globalInstallers.length === 0 && (
-            <p className="text-gray-500 text-center py-4">
+            <p className="text-muted-foreground text-center py-4">
               No installer recommendations available. Please try adjusting your budget or contact us for assistance.
             </p>
           )}
@@ -488,7 +488,7 @@ isSaving={savingRecommendation === `installer-${installer.company}`}
 
       {/* Save Solution Button */}
       {(selectedPanelIndex !== null || selectedInstallerIndex !== null) && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-card rounded-lg shadow-lg p-6 border border-border">
           <button
             onClick={handleSaveSolution}
             disabled={saving || (!finalizedLayoutId && !savedProjectId)}
@@ -506,7 +506,7 @@ isSaving={savingRecommendation === `installer-${installer.company}`}
               </>
             )}
           </button>
-          <p className="text-xs text-gray-500 text-center mt-2">
+          <p className="text-xs text-muted-foreground text-center mt-2">
             Your selected installer will be notified and will contact you for next steps
           </p>
         </div>
@@ -571,14 +571,14 @@ const PanelCard: React.FC<{
         className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
           isSelected
             ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-            : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+            : 'border-border hover:border-green-300'
         }`}
         onClick={onSelect}
       >
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
             <h4 className="font-semibold text-lg">{panel.name}</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{panel.manufacturer}</p>
+            <p className="text-sm text-muted-foreground">{panel.manufacturer}</p>
           </div>
           <div className="flex items-center gap-2">
             {isSelected && (
@@ -594,7 +594,7 @@ const PanelCard: React.FC<{
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 isSaved
                   ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white'
               } disabled:bg-gray-400 disabled:cursor-not-allowed`}
             >
               {isSaving ? (
@@ -619,20 +619,20 @@ const PanelCard: React.FC<{
   
         {/* Rest of the component remains the same */}
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded">
-            <p className="text-xs text-gray-500">Type</p>
+          <div className="p-2 bg-secondary/50 rounded">
+            <p className="text-xs text-muted-foreground">Type</p>
             <p className="font-medium capitalize">{panel.type}</p>
           </div>
-          <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded">
-            <p className="text-xs text-gray-500">Efficiency</p>
+          <div className="p-2 bg-secondary/50 rounded">
+            <p className="text-xs text-muted-foreground">Efficiency</p>
             <p className="font-medium">{panel.efficiency}%</p>
           </div>
-          <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded">
-            <p className="text-xs text-gray-500">Power Rating</p>
+          <div className="p-2 bg-secondary/50 rounded">
+            <p className="text-xs text-muted-foreground">Power Rating</p>
             <p className="font-medium">{panel.powerRating}W</p>
           </div>
-          <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded">
-            <p className="text-xs text-gray-500">Warranty</p>
+          <div className="p-2 bg-secondary/50 rounded">
+            <p className="text-xs text-muted-foreground">Warranty</p>
             <p className="font-medium">{panel.warranty} years</p>
           </div>
         </div>
@@ -646,14 +646,14 @@ const PanelCard: React.FC<{
           </p>
         </div>
   
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{panel.description}</p>
+        <p className="text-sm text-muted-foreground mb-3">{panel.description}</p>
   
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div>
             <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">✓ Pros:</p>
             <ul className="text-xs space-y-1">
               {panel.pros.map((pro, i) => (
-                <li key={i} className="text-gray-600 dark:text-gray-400">• {pro}</li>
+                <li key={i} className="text-muted-foreground">• {pro}</li>
               ))}
             </ul>
           </div>
@@ -661,15 +661,15 @@ const PanelCard: React.FC<{
             <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">✗ Cons:</p>
             <ul className="text-xs space-y-1">
               {panel.cons.map((con, i) => (
-                <li key={i} className="text-gray-600 dark:text-gray-400">• {con}</li>
+                <li key={i} className="text-muted-foreground">• {con}</li>
               ))}
             </ul>
           </div>
         </div>
   
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
-          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">💡 Why Recommended:</p>
-          <p className="text-xs text-blue-600 dark:text-blue-400">{panel.reasoning}</p>
+        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
+          <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1">💡 Why Recommended:</p>
+          <p className="text-xs text-orange-600 dark:text-orange-400">{panel.reasoning}</p>
         </div>
   
         <div className="flex flex-wrap gap-2 mt-3">
@@ -724,8 +724,8 @@ const InstallerCard: React.FC<{
       <div
         className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
           isSelected
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+            : 'border-border hover:border-orange-300'
         }`}
         onClick={onSelect}
       >
@@ -734,11 +734,11 @@ const InstallerCard: React.FC<{
             <h5 className="font-semibold flex items-center gap-2">
               {installer.company}
             </h5>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{installer.name}</p>
+            <p className="text-sm text-muted-foreground">{installer.name}</p>
           </div>
           <div className="flex items-center gap-2">
             {isSelected && (
-              <CheckCircle className="w-6 h-6 text-blue-500" />
+              <CheckCircle className="w-6 h-6 text-orange-500" />
             )}
             <button
               onClick={(e) => {
@@ -749,7 +749,7 @@ const InstallerCard: React.FC<{
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 isSaved
                   ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white'
               } disabled:bg-gray-400 disabled:cursor-not-allowed`}
             >
               {isSaving ? (
@@ -777,12 +777,12 @@ const InstallerCard: React.FC<{
             <Award className="w-4 h-4 text-yellow-500" />
             <span>{installer.rating.toFixed(1)} ⭐</span>
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-muted-foreground">
             {installer.yearsInBusiness} years exp.
           </div>
         </div>
   
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+        <p className="text-sm text-muted-foreground mb-3">
           {installer.description}
         </p>
   
@@ -806,15 +806,15 @@ const InstallerCard: React.FC<{
           </p>
         </div>
   
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded mb-3">
-          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">💡 Why Recommended:</p>
-          <p className="text-xs text-blue-600 dark:text-blue-400">{installer.reasoning}</p>
+        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded mb-3">
+          <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1">💡 Why Recommended:</p>
+          <p className="text-xs text-orange-600 dark:text-orange-400">{installer.reasoning}</p>
         </div>
   
         <div className="flex gap-3 text-sm">
           <a
             href={`mailto:${installer.email}`}
-            className="flex items-center gap-1 text-blue-500 hover:text-blue-600"
+            className="flex items-center gap-1 text-orange-500 hover:text-orange-600"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <Mail className="w-4 h-4" />
@@ -823,7 +823,7 @@ const InstallerCard: React.FC<{
           
           <a
             href={`tel:${installer.phone}`}
-            className="flex items-center gap-1 text-blue-500 hover:text-blue-600"
+            className="flex items-center gap-1 text-orange-500 hover:text-orange-600"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <Phone className="w-4 h-4" />
@@ -834,7 +834,7 @@ const InstallerCard: React.FC<{
               href={installer.website.startsWith('http') ? installer.website : `https://${installer.website}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-blue-500 hover:text-blue-600"
+              className="flex items-center gap-1 text-orange-500 hover:text-orange-600"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <Globe className="w-4 h-4" />
