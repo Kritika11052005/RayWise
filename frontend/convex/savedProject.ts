@@ -327,3 +327,40 @@ export const debugUser = query({
     };
   },
 });
+// Add this query function to your existing convex/savedProject.ts file
+
+export const getProjectById = query({
+  args: {
+    projectId: v.id("savedProjects"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const project = await ctx.db.get(args.projectId);
+    
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Verify ownership
+    if (project.userId !== user._id) {
+      throw new Error("Unauthorized: You don't have access to this project");
+    }
+
+    return project;
+  },
+});

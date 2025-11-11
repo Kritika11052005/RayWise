@@ -310,3 +310,40 @@ export const getReadyForInstallation = query({
     return layouts;
   },
 });
+// Add this query function to your existing convex/finalizedLayouts.ts file
+
+export const getFinalizedLayoutById = query({
+  args: {
+    layoutId: v.id("finalizedLayouts"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const layout = await ctx.db.get(args.layoutId);
+    
+    if (!layout) {
+      throw new Error("Layout not found");
+    }
+
+    // Verify ownership
+    if (layout.userId !== user._id) {
+      throw new Error("Unauthorized: You don't have access to this layout");
+    }
+
+    return layout;
+  },
+});
