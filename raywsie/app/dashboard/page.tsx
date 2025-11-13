@@ -313,6 +313,7 @@ type SolarPlansResponse = {
 } | null;
 const Dashboard = () => {
     const { user } = useUser();
+    
     const [activeTab, setActiveTab] = useState("overview");
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
@@ -332,12 +333,43 @@ const Dashboard = () => {
     console.log('🔍 Recommendations length:', savedRecommendations.length);
     const updateLayoutStatus = useMutation(api.finalizedLayouts.updateFinalizedLayout);
     const currentUser = useQuery(api.users.getCurrentUser);
+    useEffect(() => {
+        console.log('📊 Dashboard Data:', {
+            savedProjectsLoading: savedProjects === undefined,
+            savedProjectsCount: savedProjects?.length,
+            finalizedLayoutsLoading: finalizedLayouts === undefined,
+            finalizedLayoutsCount: finalizedLayouts?.length,
+            stats: stats,
+            hasData: stats.hasData
+        });
+    }, [savedProjects, finalizedLayouts]);
     const debugInfo = useQuery(api.savedProject.debugUser);
     console.log('🔍 Dashboard Debug:', {
         savedProjects: savedProjects.length,
         finalizedLayouts: finalizedLayouts.length,
         hasProjects: savedProjects.length > 0 || finalizedLayouts.length > 0
     });
+    useEffect(() => {
+        const checkAuth = async () => {
+            if (user) {
+                console.log('🔑 Frontend User Check:', {
+                    clerkUserId: user.id,
+                    clerkEmail: user.emailAddresses[0]?.emailAddress,
+                    convexUser: currentUser,
+                    convexUserId: currentUser?._id,
+                    convexTokenIdentifier: currentUser?.tokenIdentifier
+                });
+                
+                // Try to manually fetch projects with debug info
+                console.log('📊 Current query results:', {
+                    savedProjects: savedProjects,
+                    finalizedLayouts: finalizedLayouts,
+                    debugInfo: debugInfo
+                });
+            }
+        };
+        checkAuth();
+    }, [user, currentUser, savedProjects, finalizedLayouts, debugInfo]);
     const [updatingLayoutStatus, setUpdatingLayoutStatus] = useState<string | null>(null);
     const [showRecommendationsGenerator, setShowRecommendationsGenerator] = useState<boolean>(false);
     const [generatedRecommendations, setGeneratedRecommendations] = useState<GeneratedRecommendations | null>(null);
@@ -575,6 +607,22 @@ const Dashboard = () => {
         }
     };
     const calculateStats = () => {
+        // Check if data is still loading
+        if (savedProjects === undefined || finalizedLayouts === undefined) {
+            return {
+                monthlyEnergy: 0,
+                monthlySavings: 0,
+                co2Avoided: 0,
+                roiYears: 7.2,
+                roiProgress: 0,
+                energyGrowth: 0,
+                savingsGrowth: 0,
+                hasData: false,
+                projectName: null,
+                projectLocation: null,
+            };
+        }
+
         const selectedProject = getSelectedProject();
 
         // Use AI ROI data if available, otherwise use defaults
@@ -961,6 +1009,7 @@ const Dashboard = () => {
         selectedProjectId,
         selectedProjectType
     ]);
+
     return (
         <div className="min-h-screen bg-background">
             {/* Animated background particles */}
@@ -1052,8 +1101,8 @@ const Dashboard = () => {
 
             {/* Main Content */}
             <div className={`transition-all duration-300 ease-in-out ${isMobile ? 'ml-0' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-    <div className="flex">
-        <div className="flex-1 p-4 md:p-8 pt-12 md:pt-16 dashboard-content">
+                <div className="flex">
+                    <div className="flex-1 p-4 md:p-8 pt-12 md:pt-16 dashboard-content">
 
 
                         {/* Top Bar */}
@@ -1260,10 +1309,13 @@ const Dashboard = () => {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="text-2xl font-bold">
-                                                {stats.hasData
-                                                    ? `${stats.monthlyEnergy.toLocaleString()} kWh`
-                                                    : "0 kWh"
-                                                }
+                                                {savedProjects === undefined || finalizedLayouts === undefined ? (
+                                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                                ) : stats.hasData ? (
+                                                    `${stats.monthlyEnergy.toLocaleString()} kWh`
+                                                ) : (
+                                                    "0 kWh"
+                                                )}
                                             </div>
                                             <p className="text-xs text-muted-foreground">
                                                 {stats.hasData ? (
@@ -1290,12 +1342,15 @@ const Dashboard = () => {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {stats.hasData
-                                                    ? `$${stats.monthlySavings.toLocaleString()}`
-                                                    : "$0"
-                                                }
-                                            </div>
+                                        <div className="text-2xl font-bold">
+    {savedProjects === undefined || finalizedLayouts === undefined ? (
+        <Loader2 className="w-6 h-6 animate-spin" />
+    ) : stats.hasData ? (
+        `$${stats.monthlySavings.toLocaleString()}`
+    ) : (
+        "$0"
+    )}
+</div>
                                             <p className="text-xs text-muted-foreground">
                                                 {stats.hasData ? (
                                                     stats.savingsGrowth > 0 ? (
@@ -1321,12 +1376,15 @@ const Dashboard = () => {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">
-                                                {stats.hasData
-                                                    ? `${stats.co2Avoided.toLocaleString()} kg`
-                                                    : "0 kg"
-                                                }
-                                            </div>
+                                        <div className="text-2xl font-bold">
+    {savedProjects === undefined || finalizedLayouts === undefined ? (
+        <Loader2 className="w-6 h-6 animate-spin" />
+    ) : stats.hasData ? (
+        `${stats.co2Avoided.toLocaleString()} kg`
+    ) : (
+        "0 kg"
+    )}
+</div>
                                             <p className="text-xs text-muted-foreground">
                                                 {stats.hasData
                                                     ? "This month"
