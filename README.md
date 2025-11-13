@@ -10,6 +10,10 @@
 ![RayWise Dashboard](https://img.shields.io/badge/Status-Live-success?style=for-the-badge)
 
 ## 🌐 Live Demo
+<img width="1900" height="911" alt="image" src="https://github.com/user-attachments/assets/71765305-8b45-425d-9262-76acdfec272e" />
+
+<img width="1907" height="912" alt="image" src="https://github.com/user-attachments/assets/43d8f754-a9b5-4fca-ac20-efa98be436bb" />
+<img width="1900" height="922" alt="image" src="https://github.com/user-attachments/assets/5668245e-306a-45b1-9edf-fa603802af06" />
 
 **🔗 [ray-wise.vercel.app](https://ray-wise.vercel.app)**
 
@@ -436,31 +440,40 @@ raywise/
 *Computer Vision, Smart Optimization, Energy Predictions, Provider Network*
 
 ### How It Works
-![How It Works](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=3+Simple+Steps)
+<img width="1918" height="930" alt="image" src="https://github.com/user-attachments/assets/3a472e28-073f-4861-8f46-1e45a75443f4" />
+
 *Upload Your Rooftop → AI Analysis → Get Results*
 
 ### Dashboard Overview
-![Dashboard](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=Solar+Energy+Dashboard)
+<img width="1919" height="921" alt="image" src="https://github.com/user-attachments/assets/22e40369-24e2-4d10-9331-2ea4d8960502" />
+
 *Main dashboard with live stats, metrics, and quick actions*
 
 ### Rooftop Analyzer
-![Analyzer](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=AI+Rooftop+Analyzer)
+<img width="1914" height="915" alt="image" src="https://github.com/user-attachments/assets/834ac34f-98ee-4e05-bfec-2a75c26dd2e6" />
+<img width="1899" height="931" alt="image" src="https://github.com/user-attachments/assets/e55b9923-8782-4039-a43c-600e4f00c4a4" />
+
+
 *Interactive canvas for image upload, location setting, and polygon drawing*
 
 ### Energy Production Forecast
-![Forecast](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=Energy+Production+Charts)
+<img width="1898" height="911" alt="image" src="https://github.com/user-attachments/assets/e3ada488-fe14-4e87-bbc9-a7c4cf757a93" />
+
 *12-month energy consumption vs production visualization with ROI analysis*
 
 ### Cost vs Savings Analysis
-![ROI](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=ROI+Analysis)
+<img width="1898" height="911" alt="image" src="https://github.com/user-attachments/assets/805774a7-befb-4219-ba02-402a05bcd744" />
+
 *Comprehensive financial breakdown showing investment return over 8 years*
 
 ### Solar Panel Recommendations
-![Recommendations](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=Panel+Recommendations)
+<img width="1919" height="919" alt="image" src="https://github.com/user-attachments/assets/3567d746-4d71-460e-857d-97ab774b1250" />
+
 *AI-generated panel suggestions with efficiency ratings, pricing, and pros/cons*
 
 ### AI Solar Assistant
-![AI Assistant](https://via.placeholder.com/1200x600/1a1a1a/ff8c42?text=AI+Solar+Assistant)
+<img width="681" height="923" alt="image" src="https://github.com/user-attachments/assets/56822dd1-e7db-4135-990f-bfce7f94210c" />
+
 *Interactive chatbot for real-time solar energy guidance and calculations*
 
 ---
