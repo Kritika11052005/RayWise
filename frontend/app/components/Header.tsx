@@ -2,6 +2,7 @@
 "use client";
 import Link from "next/link";
 import { Sun } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
     SignInButton,
     SignUpButton,
@@ -12,12 +13,33 @@ import {
 import ThemeToggle from "./ThemeToggler";
 
 export default function Header() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <header className="flex justify-between items-center px-6 py-4 h-16">
+    <header 
+      className={`fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 py-4 h-16 transition-all duration-300 ${
+        isScrolled 
+          ? "bg-background/80 backdrop-blur-md shadow-md" 
+          : "bg-transparent"
+      }`}
+    >
       {/* Shifted to the right with ml-16 */}
       <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity ml-16">
         <Sun className="h-6 w-6 text-orange-500" />
-        <span>RayWise</span>
+        <span className={isScrolled ? "" : "text-white"}>RayWise</span>
       </Link>
       
       {/* Shifted to the left with mr-16 */}
@@ -35,7 +57,7 @@ export default function Header() {
         <SignedOut>
           <SignInButton />
           <SignUpButton>
-            <button className="bg-[#6c47ff] text-ceramic-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer hover:bg-[#5a3cd9] transition-colors">
+            <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer hover:bg-[#5a3cd9] transition-colors">
               Sign Up
             </button>
           </SignUpButton>

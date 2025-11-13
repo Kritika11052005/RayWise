@@ -27,31 +27,47 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
-      <section className="relative px-6 pt-20 pb-32">
-        <div className="max-w-7xl mx-auto">
+      {/* Hero Section */}
+      <section className="relative px-6 pt-20 pb-32 overflow-hidden min-h-[90vh] flex items-center">
+        {/* Background Video */}
+        <div className="absolute inset-0 z-0">
+          <video 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="w-full h-full object-cover"
+          >
+            <source src="/Solar_Panel_Video_Generation.mp4" type="video/mp4" />
+          </video>
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-black/75"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center space-y-8">
             {/* Main Logo/Title */}
-            <div className="flex justify-center items-center gap-4 mb-8">
+            <div id="hero-logo" className="flex justify-center items-center gap-4 mb-8">
               <div className="p-3 bg-primary rounded-xl">
                 <Sun className="h-10 w-10 text-primary-foreground" />
               </div>
-              <h1 className="text-5xl md:text-7xl font-bold text-foreground">
+              <h1 className="text-5xl md:text-7xl font-bold text-white">
                 RayWise
               </h1>
             </div>
 
             {/* Tagline */}
             <div className="space-y-4">
-              <h2 className="text-2xl md:text-4xl font-semibold text-foreground max-w-4xl mx-auto">
+              <h2 id="hero-title" className="text-2xl md:text-4xl font-semibold text-white max-w-4xl mx-auto">
                 AI-Powered Solar Rooftop Analysis
               </h2>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              <p id="hero-description" className="text-lg md:text-xl text-gray-200 max-w-3xl mx-auto leading-relaxed">
                 Transform your rooftop into a renewable energy powerhouse with intelligent computer vision analysis and optimized solar panel placement designs.
               </p>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
+            <div id="hero-buttons" className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-12">
               {isSignedIn ? (
                 <button 
                   onClick={handleStartAnalysis}
@@ -69,7 +85,7 @@ export default function Home() {
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </button>
               )}
-              <button className="px-8 py-3 border border-border hover:bg-accent hover:text-accent-foreground rounded-md font-medium text-muted-foreground transition-colors">
+              <button className="px-8 py-3 border-2 border-white hover:bg-white hover:text-black rounded-md font-medium text-white transition-colors">
                 Watch Demo
               </button>
             </div>

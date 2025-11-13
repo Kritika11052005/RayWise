@@ -1051,12 +1051,12 @@ const Dashboard = () => {
 
             {/* Main Content */}
             <div className={`transition-all duration-300 ease-in-out ${isMobile ? 'ml-0' : sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-                <div className="flex">
-                    <div className="flex-1 p-4 md:p-8 dashboard-content">
+    <div className="flex">
+        <div className="flex-1 p-4 md:p-8 pt-12 md:pt-16 dashboard-content">
 
 
                         {/* Top Bar */}
-                        <div className="mb-6 md:mb-8">
+                        <div className="mb-6 md:mb-8 mt-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                     <h1 className="text-2xl md:text-3xl font-bold text-foreground">
@@ -2569,8 +2569,8 @@ const Dashboard = () => {
                     </div>
 
                     {/* Right Panel - Notifications & Stats */}
-                    <div className={`w-80 border-l border-border p-6 bg-card/50 hidden ${sidebarOpen ? 'xl:block' : 'lg:block'}`}>
-                        <div className="space-y-6">
+                    <div className={`w-80 border-l border-border p-6 pt-12 bg-card/50 hidden ${sidebarOpen ? 'xl:block' : 'lg:block'}`}>
+                        <div className="space-y-6 mt-8">
                             {/* Real-time Stats */}
                             <Card>
                                 <CardHeader className="pb-3">
