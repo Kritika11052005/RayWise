@@ -68,6 +68,7 @@ export const finalizeLayout = mutation({
       lon: v.optional(v.number()),
     }),
     imageUrl: v.optional(v.string()),
+    renderedLayoutImage: v.optional(v.string()),
     polygonPoints: v.array(
       v.object({
         x: v.number(),
@@ -119,6 +120,7 @@ export const finalizeLayout = mutation({
       description: args.description,
       location: args.location,
       imageUrl: args.imageUrl,
+      renderedLayoutImage: args.renderedLayoutImage,
       polygonPoints: args.polygonPoints,
       imageWidth: args.imageWidth,
       imageHeight: args.imageHeight,
@@ -131,26 +133,108 @@ export const finalizeLayout = mutation({
         estimatedMonthlySavings: Math.round(estimatedMonthlySavings),
         co2OffsetKgPerYear: Math.round(co2OffsetKgPerYear),
       },
-      readyForInstallation: false, // Expert review needed
+      readyForInstallation: false,
       expertReviewed: false,
       finalizedAt: now,
       createdAt: now,
       updatedAt: now,
     });
 
-    // Create notification
+    // 🎉 CREATE NOTIFICATION FOR FINALIZED LAYOUT
     await ctx.db.insert("notifications", {
       userId: user._id,
-      title: "Layout Finalized",
-      message: `Your solar panel layout "${args.name}" has been finalized and is ready for expert review!`,
+      title: "Layout Finalized Successfully!",
+      message: `Your solar panel layout "${args.name}" has been finalized with ${totalPanels} panels (${systemSizeKw} kW). Ready for expert review!`,
       type: "system_update",
       read: false,
       createdAt: now,
+      link: "/dashboard?tab=projects",
     });
 
     return layoutId;
   },
 });
+
+// Update finalized layout (e.g., after expert review)
+export const updateFinalizedLayout = mutation({
+  args: {
+    layoutId: v.id("finalizedLayouts"),
+    readyForInstallation: v.optional(v.boolean()),
+    expertReviewed: v.optional(v.boolean()),
+    expertNotes: v.optional(v.string()),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getOrCreateUser(ctx);
+
+    const layout = await ctx.db.get(args.layoutId);
+    if (!layout) {
+      throw new Error("Layout not found");
+    }
+
+    if (layout.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    // 🔍 CHECK FOR STATUS CHANGES BEFORE UPDATE
+    const wasNotReady = !layout.readyForInstallation;
+    const wasNotReviewed = !layout.expertReviewed;
+    const nowReady = args.readyForInstallation === true;
+    const nowReviewed = args.expertReviewed === true;
+
+    const updates: FinalizedLayoutUpdates = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.readyForInstallation !== undefined) {
+      updates.readyForInstallation = args.readyForInstallation;
+    }
+    if (args.expertReviewed !== undefined) {
+      updates.expertReviewed = args.expertReviewed;
+    }
+    if (args.expertNotes) {
+      updates.expertNotes = args.expertNotes;
+    }
+    if (args.description) {
+      updates.description = args.description;
+    }
+
+    await ctx.db.patch(args.layoutId, updates);
+
+    // 🎉 CREATE NOTIFICATIONS FOR STATUS CHANGES
+    const now = Date.now();
+
+    // Notification when layout becomes ready for installation
+    if (wasNotReady && nowReady && !nowReviewed) {
+      await ctx.db.insert("notifications", {
+        userId: user._id,
+        title: "Layout Ready for Installation!",
+        message: `Your solar panel layout "${layout.name}" is now ready for installation. You can proceed to find installers!`,
+        type: "system_update",
+        read: false,
+        createdAt: now,
+        link: "/dashboard?tab=projects",
+      });
+    }
+
+    // Notification when layout is expert reviewed (highest priority)
+    if (wasNotReviewed && nowReviewed) {
+      await ctx.db.insert("notifications", {
+        userId: user._id,
+        title: "Expert Review Complete!",
+        message: `Great news! Your layout "${layout.name}" has been reviewed and approved by our experts. ${args.expertNotes ? 'Check the expert notes for details.' : 'Ready for installation!'}`,
+        type: "new_incentive",
+        read: false,
+        createdAt: now,
+        link: "/dashboard?tab=projects",
+      });
+    }
+
+    return args.layoutId;
+  },
+});
+
+
 
 // Get all finalized layouts for current user
 export const getUserFinalizedLayouts = query({
@@ -219,49 +303,7 @@ export const getFinalizedLayout = query({
   },
 });
 
-// Update finalized layout (e.g., after expert review)
-export const updateFinalizedLayout = mutation({
-  args: {
-    layoutId: v.id("finalizedLayouts"),
-    readyForInstallation: v.optional(v.boolean()),
-    expertReviewed: v.optional(v.boolean()),
-    expertNotes: v.optional(v.string()),
-    description: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const user = await getOrCreateUser(ctx);
 
-    const layout = await ctx.db.get(args.layoutId);
-    if (!layout) {
-      throw new Error("Layout not found");
-    }
-
-    if (layout.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
-
-    const updates: FinalizedLayoutUpdates = {
-      updatedAt: Date.now(),
-    };
-
-    if (args.readyForInstallation !== undefined) {
-      updates.readyForInstallation = args.readyForInstallation;
-    }
-    if (args.expertReviewed !== undefined) {
-      updates.expertReviewed = args.expertReviewed;
-    }
-    if (args.expertNotes) {
-      updates.expertNotes = args.expertNotes;
-    }
-    if (args.description) {
-      updates.description = args.description;
-    }
-
-    await ctx.db.patch(args.layoutId, updates);
-
-    return args.layoutId;
-  },
-});
 
 // Delete a finalized layout
 export const deleteFinalizedLayout = mutation({

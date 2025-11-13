@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -10,7 +10,14 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import ProjectDetailModal from '../components/ProjectDetailModal';
 import { Alert, AlertDescription } from "../components/ui/alert";
+import RecommendationsGenerator from '../components/RecommendationsGenerator';
+import { calculateAIROI, extractProjectMetrics } from '../../lib/Calculator';
+import ProjectCard from "../components/ProjectCard";
+import SolarRecommendations from "../components/SolarRecommendations"
+import AISolarAssistant from '../components/AISolarAssistant';
+import NotificationPanel from '../components/NotificationPanel';
 import {
     Upload,
     Zap,
@@ -19,6 +26,7 @@ import {
     TrendingUp,
     Sun,
     Home,
+    X,
     BarChart3,
     Settings,
     FolderOpen,
@@ -28,6 +36,8 @@ import {
     MessageCircle,
     ChevronLeft,
     Menu,
+    Loader2,
+    Check
 } from "lucide-react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import * as THREE from "three";
@@ -47,7 +57,66 @@ type PolygonPoint = {
     x: number;
     y: number;
 };
-
+type GeneratedRecommendations = {
+    panels: Array<{
+        name: string;
+        type: 'monocrystalline' | 'polycrystalline' | 'thin-film';
+        manufacturer: string;
+        efficiency: number;
+        powerRating: number;
+        warranty: number;
+        pricePerPanel: { min: number; max: number; currency: string };
+        totalCost: number;
+        description: string;
+        pros: string[];
+        cons: string[];
+        bestFor: string[];
+        reasoning: string;
+    }>;
+    localInstallers: Array<{
+        name: string;
+        company: string;
+        email: string;
+        phone: string;
+        website?: string;
+        isLocal: boolean;
+        serviceArea: string;
+        rating: number;
+        yearsInBusiness: number;
+        projectsCompleted: number;
+        certifications: string[];
+        services: string[];
+        budgetRange: { min: number; max: number; currency: string };
+        description: string;
+        specializations: string[];
+        estimatedCost: number;
+        reasoning: string;
+    }>;
+    globalInstallers: Array<{
+        name: string;
+        company: string;
+        email: string;
+        phone: string;
+        website?: string;
+        isLocal: boolean;
+        serviceArea: string;
+        rating: number;
+        yearsInBusiness: number;
+        projectsCompleted: number;
+        certifications: string[];
+        services: string[];
+        budgetRange: { min: number; max: number; currency: string };
+        description: string;
+        specializations: string[];
+        estimatedCost: number;
+        reasoning: string;
+    }>;
+    budgetAnalysis: {
+        isRealistic: boolean;
+        notes: string;
+        recommendations: string;
+    };
+};
 type SavedProjectAnalysis = {
     totalPanels: number;
     totalPowerKw: number;
@@ -58,7 +127,30 @@ type SavedProjectAnalysis = {
     sunAnalysis?: string;
     shadowAnalysis?: string;
 };
+type EnergyDataPoint = {
+    month: string;
+    production: number;
+    consumption: number;
+    savings: number;
+};
 
+type ROIDataPoint = {
+    year: string;
+    cost: number;
+    savings: number;
+    netPosition: number;
+};
+
+type PredictionsData = {
+    energyData: EnergyDataPoint[];
+    roiData: ROIDataPoint[];
+    metadata: {
+        location: string;
+        systemSize: number;
+        projectCount: number;
+        fallback?: boolean;
+    };
+} | null;
 type PanelLayoutItem = {
     x: number;
     y: number;
@@ -66,7 +158,42 @@ type PanelLayoutItem = {
     height: number;
     rotation: number;
 };
+type Installer = {
+    id: string;
+    companyName: string;
+    contact: {
+        phone: string;
+        email: string;
+        address: string;
+        website?: string;
+    };
+    rating: number;
+    reviewsCount: number;
+    yearsInBusiness: number;
+    specialties: string[];
+    certifications: string[];
+    estimatedCost: {
+        min: number;
+        max: number;
+    };
+    installationTime: string;
+    description: string;
+    availability: string;
+    warrantyYears: number;
+    financingAvailable: boolean;
+};
 
+type InstallersResponse = {
+    success: boolean;
+    installers: Installer[];
+    locationInfo: {
+        city: string;
+        country: string;
+        averageCostPerWatt: number;
+        typicalInstallationTime: string;
+        localIncentives: string[];
+    };
+} | null;
 type SavedProject = {
     _id: string;
     _creationTime: number;
@@ -96,6 +223,7 @@ type FinalizedLayout = {
     _id: string;
     _creationTime: number;
     userId: string;
+    savedProjectId?: string;
     name: string;
     description?: string;
     location: {
@@ -104,9 +232,23 @@ type FinalizedLayout = {
         lat?: number;
         lon?: number;
     };
-    createdAt: number;
-    updatedAt: number;
-    readyForInstallation: boolean;
+    imageUrl?: string;
+    renderedLayoutImage?: string;
+    imageStorageId?: string;
+    polygonPoints: PolygonPoint[];
+    imageWidth: number;
+    imageHeight: number;
+    analysis: {
+        totalPanels: number;
+        totalPowerKw: number;
+        orientation: number | string;
+        layout: string;
+        annualProduction: number;
+        recommendations: string;
+        sunAnalysis?: string;
+        shadowAnalysis?: string;
+    };
+    panelLayout: PanelLayoutItem[];
     systemSpecs: {
         totalPanels: number;
         systemSizeKw: number;
@@ -114,9 +256,12 @@ type FinalizedLayout = {
         estimatedMonthlySavings: number;
         co2OffsetKgPerYear: number;
     };
-    imageUrl?: string;
-    polygonPoints?: PolygonPoint[];
-    panelLayout?: PanelLayoutItem[];
+    readyForInstallation: boolean;
+    expertReviewed: boolean;  // ADD THIS LINE
+    expertNotes?: string;      // ADD THIS LINE
+    finalizedAt: number;
+    createdAt: number;
+    updatedAt: number;
 };
 
 // From recommendations schema
@@ -147,17 +292,61 @@ type CurrentUser = {
     name: string;
     createdAt: number;
 };
+type SolarPlan = {
+    name: string;
+    tier: string;
+    systemSize: number;
+    estimatedCost: number;
+    annualProduction: number;
+    roiYears: number;
+    recommendation: string;
+    highlights: string[];
+};
+
+type SolarPlansResponse = {
+    success: boolean;
+    plans: SolarPlan[];
+    comparison: {
+        recommendation: string;
+    };
+} | null;
 const Dashboard = () => {
     const { user } = useUser();
     const [activeTab, setActiveTab] = useState("overview");
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
-
+    const [aiRoiData, setAiRoiData] = useState<{
+        roiYears: number;
+        roiProgress: number;
+        monthlyPayback: number;
+        insights: string[];
+    } | null>(null);
+    const [roiLoading, setRoiLoading] = useState(false);
     // Fetch real data from Convex
     const savedProjects = useQuery(api.savedProject.getUserProjects) ?? [];
     const finalizedLayouts = useQuery(api.finalizedLayouts.getUserFinalizedLayouts) ?? [];
     const userSolutions = useQuery(api.recommendations.getUserSolutions) ?? [];
+    const savedRecommendations = useQuery(api.savedRecommendations.getUserRecommendations, {}) ?? [];
+    console.log('🔍 Saved Recommendations:', savedRecommendations);
+    console.log('🔍 Recommendations length:', savedRecommendations.length);
+    const updateLayoutStatus = useMutation(api.finalizedLayouts.updateFinalizedLayout);
     const currentUser = useQuery(api.users.getCurrentUser);
+    const debugInfo = useQuery(api.savedProject.debugUser);
+    console.log('🔍 Dashboard Debug:', {
+        savedProjects: savedProjects.length,
+        finalizedLayouts: finalizedLayouts.length,
+        hasProjects: savedProjects.length > 0 || finalizedLayouts.length > 0
+    });
+    const [updatingLayoutStatus, setUpdatingLayoutStatus] = useState<string | null>(null);
+    const [showRecommendationsGenerator, setShowRecommendationsGenerator] = useState<boolean>(false);
+    const [generatedRecommendations, setGeneratedRecommendations] = useState<GeneratedRecommendations | null>(null);
+    const [generatingForProjectId, setGeneratingForProjectId] = useState<string | null>(null);
+    // Add these state variables with your other useState declarations (around line 200)
+    const [predictions, setPredictions] = useState<PredictionsData>(null);
+    const [loadingPredictions, setLoadingPredictions] = useState(false);
+    // Add these state variables with your other useState declarations (around line 195)
+    const [findingInstallers, setFindingInstallers] = useState(false);
+    const [installers, setInstallers] = useState<InstallersResponse>(null);
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [selectedProjectType, setSelectedProjectType] = useState<'saved' | 'finalized' | null>(null);
     // Three.js scene ref
@@ -165,8 +354,13 @@ const Dashboard = () => {
     const statsRef = useRef<HTMLDivElement>(null);
     const deleteProject = useMutation(api.savedProject.deleteProject);
     const deleteFinalizedLayout = useMutation(api.finalizedLayouts.deleteFinalizedLayout);
+    const [comparingPlans, setComparingPlans] = useState(false);
+    const [solarPlans, setSolarPlans] = useState<SolarPlansResponse>(null);
     // Add this state for the dropdown
     const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+    const [selectedProjectForModal, setSelectedProjectForModal] = useState<SavedProject | FinalizedLayout | null>(null);
+    const [modalProjectType, setModalProjectType] = useState<'saved' | 'finalized' | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     // Calculate dashboard statistics from real data
     // Replace your calculateStats function in dashboard/page.tsx (around line 177)
     // Add this helper function to get the selected project
@@ -179,17 +373,212 @@ const Dashboard = () => {
             return savedProjects.find(p => p._id === selectedProjectId);
         }
     };
-    const handleViewProjectDetails = (projectId: string, projectType: 'saved' | 'finalized') => {
-        // Store the project info in sessionStorage so RoofTopAnalyzer can load it
-        sessionStorage.setItem('viewProjectId', projectId);
-        sessionStorage.setItem('viewProjectType', projectType);
-        sessionStorage.setItem('shouldLoadProject', 'true'); // Flag to indicate project should be loaded
+    const fetchPredictions = async () => {
+        if (savedProjects.length === 0 && finalizedLayouts.length === 0) {
+            setPredictions(null);
+            return;
+        }
 
-        // Navigate to upload tab
-        handleTabChange('upload');
+        setLoadingPredictions(true);
+        try {
+            const response = await fetch('/api/generate-predictions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId: selectedProjectId || undefined,
+                    projectType: selectedProjectType || undefined,
+                    savedProjects,
+                    finalizedLayouts
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setPredictions(data);
+            } else {
+                console.error('Failed to fetch predictions:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching predictions:', error);
+        } finally {
+            setLoadingPredictions(false);
+        }
+    };
+    const getStatusInfo = (layout: FinalizedLayout) => {
+        if (layout.expertReviewed) {
+            return {
+                label: 'Reviewed',
+                className: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                icon: Check
+            };
+        } else if (layout.readyForInstallation) {
+            return {
+                label: 'Ready',
+                className: 'bg-green-500/20 text-green-400 border-green-500/30',
+                icon: Check
+            };
+        } else {
+            return {
+                label: 'In Review',
+                className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                icon: null
+            };
+        }
+    };
+    const handleLayoutStatusChange = async (
+        layoutId: string,
+        newStatus: 'in_review' | 'ready' | 'reviewed'
+    ) => {
+        setUpdatingLayoutStatus(layoutId);
+        try {
+            const updates: {
+                readyForInstallation?: boolean;
+                expertReviewed?: boolean;
+            } = {};
+
+            switch (newStatus) {
+                case 'in_review':
+                    updates.readyForInstallation = false;
+                    updates.expertReviewed = false;
+                    break;
+                case 'ready':
+                    updates.readyForInstallation = true;
+                    updates.expertReviewed = false;
+                    break;
+                case 'reviewed':
+                    updates.readyForInstallation = true;
+                    updates.expertReviewed = true;
+                    break;
+            }
+
+            await updateLayoutStatus({
+                layoutId: layoutId as Id<"finalizedLayouts">,
+                ...updates
+            });
+
+            // Optional: Show success message
+            console.log('Status updated successfully');
+        } catch (error) {
+            console.error('Error updating status:', error);
+            alert('Failed to update status. Please try again.');
+        } finally {
+            setUpdatingLayoutStatus(null);
+        }
+    };
+    // Update the handleViewProjectDetails function
+    const handleViewProjectDetails = (projectId: string, projectType: 'saved' | 'finalized') => {
+        // Find the project
+        let project = null;
+        if (projectType === 'finalized') {
+            project = finalizedLayouts.find(l => l._id === projectId);
+        } else {
+            project = savedProjects.find(p => p._id === projectId);
+        }
+
+        if (project) {
+            setSelectedProjectForModal(project);
+            setModalProjectType(projectType);
+            setIsModalOpen(true);
+        }
+    };
+
+    // Add this function
+    const handleComparePlans = async () => {
+        if (savedProjects.length === 0 && finalizedLayouts.length === 0) {
+            alert('Please create at least one project first!');
+            return;
+        }
+
+        setComparingPlans(true);
+        setSolarPlans(null);
+
+        try {
+            const response = await fetch('/api/compare-plans', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    savedProjects,
+                    finalizedLayouts,
+                    userLocation: finalizedLayouts[0]?.location || savedProjects[0]?.location
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setSolarPlans(data);
+            } else {
+                alert('Failed to compare plans: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error comparing plans:', error);
+            alert('Failed to fetch plan comparisons');
+        } finally {
+            setComparingPlans(false);
+        }
+    };
+    const handleGenerateRecommendations = (projectId: string, projectType: 'saved' | 'finalized') => {
+        setGeneratingForProjectId(projectId);
+        setSelectedProjectId(projectId);
+        setSelectedProjectType(projectType);
+        setShowRecommendationsGenerator(true);
+    };
+
+    const handleRecommendationsGenerated = (recommendations: GeneratedRecommendations) => {
+        setGeneratedRecommendations(recommendations);
+        setShowRecommendationsGenerator(false);
+    };
+    // Add this function after handleComparePlans (around line 270)
+    const handleFindInstallers = async () => {
+        // Get user's location from projects
+        const userLocation = finalizedLayouts[0]?.location || savedProjects[0]?.location;
+
+        if (!userLocation) {
+            alert('Please create a project first to determine your location!');
+            return;
+        }
+
+        setFindingInstallers(true);
+        setInstallers(null);
+        // Clear solar plans when finding installers
+        setSolarPlans(null);
+
+        try {
+            // Calculate system size for better recommendations
+            const totalSystemSize = finalizedLayouts.reduce((sum, l) => sum + (l.systemSpecs?.systemSizeKw || 0), 0) +
+                savedProjects.reduce((sum, p) => sum + (p.analysis?.totalPowerKw || 0), 0);
+
+            const response = await fetch('/api/find-installers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    location: userLocation,
+                    systemSize: totalSystemSize || undefined,
+                    budget: undefined // You can add budget input later
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setInstallers(data);
+            } else {
+                alert('Failed to find installers: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error finding installers:', error);
+            alert('Failed to fetch installers');
+        } finally {
+            setFindingInstallers(false);
+        }
     };
     const calculateStats = () => {
         const selectedProject = getSelectedProject();
+
+        // Use AI ROI data if available, otherwise use defaults
+        const roiYears = aiRoiData?.roiYears || 7.2;
+        const roiProgress = aiRoiData?.roiProgress || 0;
 
         // If a specific project is selected, show only its stats
         if (selectedProject && selectedProjectType === 'finalized') {
@@ -198,8 +587,8 @@ const Dashboard = () => {
                 monthlyEnergy: Math.round(layout.systemSpecs.estimatedAnnualProductionKwh / 12),
                 monthlySavings: layout.systemSpecs.estimatedMonthlySavings,
                 co2Avoided: Math.round(layout.systemSpecs.co2OffsetKgPerYear / 12),
-                roiYears: 7.2, // You can calculate this based on cost if available
-                roiProgress: 0,
+                roiYears: roiYears,
+                roiProgress: roiProgress,
                 energyGrowth: 0,
                 savingsGrowth: 0,
                 hasData: true,
@@ -213,8 +602,8 @@ const Dashboard = () => {
                     monthlyEnergy: Math.round(project.analysis.annualProduction / 12),
                     monthlySavings: Math.round((project.analysis.annualProduction / 12) * 0.12),
                     co2Avoided: Math.round((project.analysis.annualProduction * 0.417) / 12),
-                    roiYears: 7.2,
-                    roiProgress: 0,
+                    roiYears: roiYears,
+                    roiProgress: roiProgress,
                     energyGrowth: 0,
                     savingsGrowth: 0,
                     hasData: true,
@@ -224,24 +613,16 @@ const Dashboard = () => {
             }
         }
 
-        // Otherwise show aggregated stats (original logic)
+        // Otherwise show aggregated stats
         let totalAnnualEnergy = 0;
         let totalMonthlySavings = 0;
         let totalAnnualCO2 = 0;
-        let totalSystemCost = 0;
-        let totalAnnualSavings = 0;
-        let oldestProjectDate = Date.now();
 
         finalizedLayouts.forEach((layout: FinalizedLayout) => {
             if (layout.systemSpecs) {
                 totalAnnualEnergy += layout.systemSpecs.estimatedAnnualProductionKwh;
                 totalMonthlySavings += layout.systemSpecs.estimatedMonthlySavings;
                 totalAnnualCO2 += layout.systemSpecs.co2OffsetKgPerYear;
-                totalAnnualSavings += layout.systemSpecs.estimatedMonthlySavings * 12;
-
-                if (layout.createdAt < oldestProjectDate) {
-                    oldestProjectDate = layout.createdAt;
-                }
             }
         });
 
@@ -256,41 +637,9 @@ const Dashboard = () => {
                     const estimatedMonthlySavings = (project.analysis.annualProduction / 12) * 0.12;
                     totalMonthlySavings += estimatedMonthlySavings;
                     totalAnnualCO2 += project.analysis.annualProduction * 0.417;
-                    totalAnnualSavings += estimatedMonthlySavings * 12;
-
-                    if (project.createdAt < oldestProjectDate) {
-                        oldestProjectDate = project.createdAt;
-                    }
                 }
             }
         });
-
-        userSolutions.forEach((solution: UserSolution) => {
-            let solutionCost = 0;
-            if (solution.panelDetails) {
-                solutionCost += solution.panelDetails.totalCost;
-            }
-            if (solution.installerDetails) {
-                solutionCost += solution.installerDetails.estimatedCost;
-            }
-            totalSystemCost += ('totalProjectCost' in solution && solution.totalProjectCost)
-                ? solution.totalProjectCost
-                : solutionCost;
-        });
-
-        const avgSystemCost = totalSystemCost || 20000;
-        const roiYears = totalAnnualSavings > 0
-            ? Math.round((avgSystemCost / totalAnnualSavings) * 10) / 10
-            : 7.2;
-
-        const monthsElapsed = finalizedLayouts.length > 0 || savedProjects.length > 0
-            ? Math.floor((Date.now() - oldestProjectDate) / (1000 * 60 * 60 * 24 * 30))
-            : 0;
-
-        const totalMonthsForROI = roiYears * 12;
-        const roiProgress = totalMonthsForROI > 0
-            ? Math.min(Math.round((monthsElapsed / totalMonthsForROI) * 100), 100)
-            : 0;
 
         const monthlyEnergy = Math.round(totalAnnualEnergy / 12);
 
@@ -315,8 +664,8 @@ const Dashboard = () => {
             monthlyEnergy,
             monthlySavings: Math.round(totalMonthlySavings),
             co2Avoided: Math.round(totalAnnualCO2 / 12),
-            roiYears,
-            roiProgress: Math.max(roiProgress, 0),
+            roiYears: roiYears,
+            roiProgress: roiProgress,
             energyGrowth,
             savingsGrowth,
             hasData: finalizedLayouts.length > 0 || savedProjects.some(p => p.status === "analyzed"),
@@ -340,31 +689,40 @@ const Dashboard = () => {
 
     const stats = calculateStats();
 
+
+
+    // Update aiRoiData when calculateROIData changes
+
+
+
+
+
+    // Tab transition animation
     // Mock data for charts (you can replace with real time-series data)
-    const energyData = [
-        { month: "Jan", production: 950, consumption: 800, savings: 135 },
-        { month: "Feb", production: 1100, consumption: 820, savings: 165 },
-        { month: "Mar", production: 1350, consumption: 790, savings: 195 },
-        { month: "Apr", production: 1450, consumption: 810, savings: 225 },
-        { month: "May", production: 1550, consumption: 850, savings: 245 },
-        { month: "Jun", production: 1600, consumption: 900, savings: 260 },
-        { month: "Jul", production: 1650, consumption: 920, savings: 275 },
-        { month: "Aug", production: 1580, consumption: 880, savings: 265 },
-        { month: "Sep", production: 1420, consumption: 840, savings: 235 },
-        { month: "Oct", production: 1250, consumption: 810, savings: 205 },
-        { month: "Nov", production: 1050, consumption: 790, savings: 175 },
-        { month: "Dec", production: 920, consumption: 800, savings: 145 },
+    const energyData = predictions?.energyData || [
+        { month: "Jan", production: 0, consumption: 0, savings: 0 },
+        { month: "Feb", production: 0, consumption: 0, savings: 0 },
+        { month: "Mar", production: 0, consumption: 0, savings: 0 },
+        { month: "Apr", production: 0, consumption: 0, savings: 0 },
+        { month: "May", production: 0, consumption: 0, savings: 0 },
+        { month: "Jun", production: 0, consumption: 0, savings: 0 },
+        { month: "Jul", production: 0, consumption: 0, savings: 0 },
+        { month: "Aug", production: 0, consumption: 0, savings: 0 },
+        { month: "Sep", production: 0, consumption: 0, savings: 0 },
+        { month: "Oct", production: 0, consumption: 0, savings: 0 },
+        { month: "Nov", production: 0, consumption: 0, savings: 0 },
+        { month: "Dec", production: 0, consumption: 0, savings: 0 },
     ];
 
-    const roiData = [
-        { year: "Year 1", cost: 20000, savings: 2160, netPosition: -17840 },
-        { year: "Year 2", cost: 20000, savings: 4320, netPosition: -15680 },
-        { year: "Year 3", cost: 20000, savings: 6480, netPosition: -13520 },
-        { year: "Year 4", cost: 20000, savings: 8640, netPosition: -11360 },
-        { year: "Year 5", cost: 20000, savings: 10800, netPosition: -9200 },
-        { year: "Year 6", cost: 20000, savings: 12960, netPosition: -7040 },
-        { year: "Year 7", cost: 20000, savings: 15120, netPosition: -4880 },
-        { year: "Year 8", cost: 20000, savings: 17280, netPosition: -2720 },
+    const roiData = predictions?.roiData || [
+        { year: "Year 1", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 2", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 3", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 4", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 5", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 6", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 7", cost: 0, savings: 0, netPosition: 0 },
+        { year: "Year 8", cost: 0, savings: 0, netPosition: 0 },
     ];
 
     const handleDeleteSavedProject = async (projectId: string) => {
@@ -390,6 +748,9 @@ const Dashboard = () => {
             }
         }
     };
+    useEffect(() => {
+        console.log('🔍 Debug User Info:', debugInfo);
+    }, [debugInfo]);
     // Three.js Solar Panel Animation
     useEffect(() => {
         if (!canvasRef.current || activeTab !== "overview") return;
@@ -480,6 +841,9 @@ const Dashboard = () => {
             );
         }
     }, [activeTab, stats]);
+    // Calculate AI-powered ROI when data changes
+
+
 
     // Tab transition animation
     const handleTabChange = (newTab: string) => {
@@ -532,6 +896,70 @@ const Dashboard = () => {
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
 
+    // AI-powered ROI calculation - runs AFTER component is mounted
+    useEffect(() => {
+        const calculateROI = async () => {
+            if (savedProjects.length === 0 && finalizedLayouts.length === 0) {
+                setAiRoiData(null);
+                return;
+            }
+
+            setRoiLoading(true);
+            try {
+                const selectedProject = selectedProjectId && selectedProjectType
+                    ? (selectedProjectType === 'finalized'
+                        ? finalizedLayouts.find(l => l._id === selectedProjectId)
+                        : savedProjects.find(p => p._id === selectedProjectId))
+                    : null;
+
+                const metrics = extractProjectMetrics(
+                    selectedProject ?? null,
+                    selectedProjectType,
+                    finalizedLayouts,
+                    savedProjects,
+                    userSolutions
+                );
+
+                const roiResult = await calculateAIROI(metrics);
+                setAiRoiData(roiResult);
+            } catch (error) {
+                console.error('ROI calculation error:', error);
+                setAiRoiData({
+                    roiYears: 7.2,
+                    roiProgress: 0,
+                    monthlyPayback: 0,
+                    insights: []
+                });
+            } finally {
+                setRoiLoading(false);
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            calculateROI();
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [
+        savedProjects.length,
+        finalizedLayouts.length,
+        userSolutions.length,
+        selectedProjectId,
+        selectedProjectType
+    ]);
+    // Add useEffect to fetch predictions when data changes (around line 730, after ROI useEffect)
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            fetchPredictions();
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [
+        savedProjects.length,
+        finalizedLayouts.length,
+        selectedProjectId,
+        selectedProjectType
+    ]);
     return (
         <div className="min-h-screen bg-background">
             {/* Animated background particles */}
@@ -598,13 +1026,14 @@ const Dashboard = () => {
                     </div>
                 )}
 
+
                 <nav className="px-4 py-4 space-y-2">
                     {[
                         { id: "overview", icon: Home, label: "Dashboard" },
                         { id: "projects", icon: FolderOpen, label: "My Projects" },
                         { id: "upload", icon: Upload, label: "Upload Rooftop" },
                         { id: "recommendations", icon: BarChart3, label: "Recommendations" },
-                        { id: "settings", icon: Settings, label: "Settings" },
+
                     ].map(({ id, icon: Icon, label }) => (
                         <Button
                             key={id}
@@ -625,7 +1054,7 @@ const Dashboard = () => {
                 <div className="flex">
                     <div className="flex-1 p-4 md:p-8 dashboard-content">
 
-                        
+
                         {/* Top Bar */}
                         <div className="mb-6 md:mb-8">
                             <div className="flex items-center justify-between">
@@ -643,12 +1072,19 @@ const Dashboard = () => {
                             </div>
 
                             {/* Project Selector Dropdown - New Line */}
+                            {/* Project Selector Dropdown - New Line */}
                             <div className="flex items-center gap-3 mt-3">
                                 <p className="text-muted-foreground hidden md:block">
                                     Your solar energy dashboard awaits. Let&apos;s optimize your renewable future.
                                 </p>
 
-                                {(savedProjects.length > 0 || finalizedLayouts.length > 0) && (
+                                {/* Show loading state while data is being fetched */}
+                                {(savedProjects === undefined || finalizedLayouts === undefined) ? (
+                                    <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-orange-500/30 bg-orange-500/10">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-500 border-t-transparent" />
+                                        <span className="text-sm text-orange-400">Loading projects...</span>
+                                    </div>
+                                ) : (savedProjects.length > 0 || finalizedLayouts.length > 0) && (
                                     <DropdownMenu open={projectDropdownOpen} onOpenChange={setProjectDropdownOpen}>
                                         <DropdownMenuTrigger asChild>
                                             <Button
@@ -665,7 +1101,7 @@ const Dashboard = () => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="start" className="w-80 max-h-96 overflow-y-auto">
-                                            {/* Show All Projects Option */}
+                                            {/* Rest of your dropdown content stays the same */}
                                             <DropdownMenuItem
                                                 className="flex items-center gap-2 py-3 cursor-pointer"
                                                 onClick={handleClearSelection}
@@ -687,6 +1123,7 @@ const Dashboard = () => {
 
                                             <DropdownMenuSeparator />
 
+                                            {/* Keep all your existing dropdown content here */}
                                             {finalizedLayouts.length > 0 && (
                                                 <>
                                                     <DropdownMenuLabel className="text-green-400">
@@ -899,6 +1336,7 @@ const Dashboard = () => {
                                     </Card>
 
                                     {/* ROI Progress Card */}
+                                    {/* ROI Progress Card */}
                                     <Card className="stat-card backdrop-blur-xl border-amber-500/20 hover:border-amber-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20">
                                         <CardHeader className="pb-2">
                                             <CardTitle className="text-sm font-medium flex items-center">
@@ -919,6 +1357,11 @@ const Dashboard = () => {
                                                     <p className="text-xs text-orange-300 mt-1">
                                                         {stats.roiProgress}% complete
                                                     </p>
+                                                    {aiRoiData?.monthlyPayback && (
+                                                        <p className="text-xs text-amber-200 mt-1">
+                                                            ${aiRoiData.monthlyPayback}/mo toward payback
+                                                        </p>
+                                                    )}
                                                 </>
                                             )}
                                             {!stats.hasData && (
@@ -926,8 +1369,16 @@ const Dashboard = () => {
                                                     Upload a rooftop to see ROI
                                                 </p>
                                             )}
+                                            {roiLoading && (
+                                                <p className="text-xs text-blue-400 mt-2 animate-pulse">
+                                                    Calculating with AI...
+                                                </p>
+                                            )}
+
+
                                         </CardContent>
                                     </Card>
+
                                 </div>
 
                                 {/* Latest Project & 3D Visualization */}
@@ -1078,9 +1529,18 @@ const Dashboard = () => {
                                                                         </p>
                                                                     </div>
                                                                 </div>
-                                                                <Button className="w-full" onClick={() => handleTabChange("projects")}>
+                                                                <Button
+                                                                    className="w-full"
+                                                                    onClick={() => {
+                                                                        if (selectedProjectId && selectedProjectType) {
+                                                                            handleViewProjectDetails(selectedProjectId, selectedProjectType);
+                                                                        } else if (!selectedProjectId && finalizedLayouts.length > 0) {
+                                                                            handleViewProjectDetails(finalizedLayouts[0]._id, 'finalized');
+                                                                        }
+                                                                    }}
+                                                                >
                                                                     <Eye className="w-4 h-4 mr-2" />
-                                                                    View Details
+                                                                    View Full Analysis
                                                                 </Button>
                                                             </>
                                                         );
@@ -1119,9 +1579,22 @@ const Dashboard = () => {
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <Button className="w-full" onClick={() => handleTabChange("projects")}>
+                                                            {/*<Button className="w-full" onClick={() => handleTabChange("projects")}>
                                                                 <Eye className="w-4 h-4 mr-2" />
                                                                 View Details
+                                                            </Button>*/}
+                                                            <Button
+                                                                className="w-full"
+                                                                onClick={() => {
+                                                                    if (selectedProjectId && selectedProjectType) {
+                                                                        handleViewProjectDetails(selectedProjectId, selectedProjectType);
+                                                                    } else if (!selectedProjectId && finalizedLayouts.length > 0) {
+                                                                        handleViewProjectDetails(finalizedLayouts[0]._id, 'finalized');
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Eye className="w-4 h-4 mr-2" />
+                                                                View Full Analysis
                                                             </Button>
                                                         </>
                                                     );
@@ -1148,14 +1621,220 @@ const Dashboard = () => {
                                                 <Upload className="w-4 h-4 mr-2" />
                                                 Upload New Rooftop
                                             </Button>
-                                            <Button variant="outline" className="w-full">
-                                                <BarChart3 className="w-4 h-4 mr-2" />
-                                                Compare Solar Plans
+                                            <Button
+                                                variant="outline"
+                                                className="w-full"
+                                                onClick={handleComparePlans}
+                                                disabled={comparingPlans || (savedProjects.length === 0 && finalizedLayouts.length === 0)}
+                                            >
+                                                {comparingPlans ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Analyzing Plans...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <BarChart3 className="w-4 h-4 mr-2" />
+                                                        Compare Solar Plans
+                                                    </>
+                                                )}
                                             </Button>
-                                            <Button variant="outline" className="w-full">
-                                                <MapPin className="w-4 h-4 mr-2" />
-                                                Find Installers Nearby
+
+                                            {/* Display Plans Below */}
+                                            {solarPlans && (
+                                                <div className="mt-4 space-y-3">
+                                                    <h4 className="font-semibold text-sm">AI-Generated Plan Comparison</h4>
+
+                                                    {solarPlans.plans.map((plan: SolarPlan, idx: number) => (
+                                                        <div key={idx} className="p-3 bg-secondary/50 rounded-lg border border-border">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h5 className="font-semibold text-sm">{plan.name}</h5>
+                                                                <span className="text-xs px-2 py-1 bg-orange-500/20 text-orange-400 rounded">
+                                                                    {plan.tier}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                                                                <div>
+                                                                    <p className="text-muted-foreground">System Size</p>
+                                                                    <p className="font-medium">{plan.systemSize} kW</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Est. Cost</p>
+                                                                    <p className="font-medium text-green-400">${plan.estimatedCost.toLocaleString()}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Annual Production</p>
+                                                                    <p className="font-medium">{plan.annualProduction.toLocaleString()} kWh</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-muted-foreground">ROI</p>
+                                                                    <p className="font-medium">{plan.roiYears} years</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <p className="text-xs text-muted-foreground mb-2">{plan.recommendation}</p>
+
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {plan.highlights.slice(0, 2).map((h: string, i: number) => (
+                                                                    <span key={i} className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded">
+                                                                        {h}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+
+                                                    {solarPlans.comparison && (
+                                                        <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                                            <p className="text-xs font-semibold text-orange-400 mb-1">💡 Our Recommendation:</p>
+                                                            <p className="text-xs text-orange-300">{solarPlans.comparison.recommendation}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <Button
+                                                variant="outline"
+                                                className="w-full"
+                                                onClick={handleFindInstallers}
+                                                disabled={findingInstallers || (savedProjects.length === 0 && finalizedLayouts.length === 0)}
+                                            >
+                                                {findingInstallers ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Finding Installers...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <MapPin className="w-4 h-4 mr-2" />
+                                                        Find Installers Nearby
+                                                    </>
+                                                )}
                                             </Button>
+
+                                            {/* Display Installers Below - Add this after the button */}
+                                            {installers && (
+                                                <div className="mt-4 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="font-semibold text-sm">Installers in {installers.locationInfo.city}</h4>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => setInstallers(null)}
+                                                            className="h-8 text-xs"
+                                                        >
+                                                            Clear
+                                                        </Button>
+                                                    </div>
+
+                                                    {/* Location Info Summary */}
+                                                    <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                                        <p className="text-xs font-semibold text-blue-400 mb-1">📍 Local Market Info:</p>
+                                                        <div className="text-xs text-blue-300 space-y-1">
+                                                            <p>Avg. Cost: ${installers.locationInfo.averageCostPerWatt}/watt</p>
+                                                            <p>Typical Install: {installers.locationInfo.typicalInstallationTime}</p>
+                                                            {installers.locationInfo.localIncentives.length > 0 && (
+                                                                <p className="font-medium text-green-400">
+                                                                    💰 Incentives: {installers.locationInfo.localIncentives.join(', ')}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Installers List */}
+                                                    <div className="max-h-96 overflow-y-auto space-y-3">
+                                                        {installers.installers.map((installer) => (
+                                                            <div key={installer.id} className="p-3 bg-secondary/50 rounded-lg border border-border hover:border-orange-500/50 transition-all">
+                                                                <div className="flex items-start justify-between mb-2">
+                                                                    <div className="flex-1">
+                                                                        <h5 className="font-semibold text-sm">{installer.companyName}</h5>
+                                                                        <div className="flex items-center gap-2 mt-1">
+                                                                            <div className="flex items-center">
+                                                                                {[...Array(5)].map((_, i) => (
+                                                                                    <span key={i} className={i < installer.rating ? "text-yellow-400" : "text-gray-600"}>
+                                                                                        ★
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                            <span className="text-xs text-muted-foreground">
+                                                                                ({installer.reviewsCount} reviews)
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className={`text-xs px-2 py-1 rounded ${installer.availability === 'immediate'
+                                                                        ? 'bg-green-500/20 text-green-400'
+                                                                        : installer.availability.includes('weeks')
+                                                                            ? 'bg-yellow-500/20 text-yellow-400'
+                                                                            : 'bg-orange-500/20 text-orange-400'
+                                                                        }`}>
+                                                                        {installer.availability}
+                                                                    </span>
+                                                                </div>
+
+                                                                <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                                                    {installer.description}
+                                                                </p>
+
+                                                                <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                                                                    <div>
+                                                                        <p className="text-muted-foreground">Experience</p>
+                                                                        <p className="font-medium">{installer.yearsInBusiness} years</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-muted-foreground">Est. Cost</p>
+                                                                        <p className="font-medium text-green-400">
+                                                                            ${installer.estimatedCost.min.toLocaleString()} - ${installer.estimatedCost.max.toLocaleString()}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-muted-foreground">Install Time</p>
+                                                                        <p className="font-medium">{installer.installationTime}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-muted-foreground">Warranty</p>
+                                                                        <p className="font-medium">{installer.warrantyYears} years</p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex flex-wrap gap-1 mb-2">
+                                                                    {installer.specialties.slice(0, 2).map((spec, i) => (
+                                                                        <span key={i} className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                                                                            {spec}
+                                                                        </span>
+                                                                    ))}
+                                                                    {installer.financingAvailable && (
+                                                                        <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded">
+                                                                            💳 Financing
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Contact Info - Collapsible */}
+                                                                <details className="text-xs">
+                                                                    <summary className="cursor-pointer text-orange-400 hover:text-orange-300 font-medium">
+                                                                        View Contact Info
+                                                                    </summary>
+                                                                    <div className="mt-2 p-2 bg-background/50 rounded space-y-1">
+                                                                        <p><span className="text-muted-foreground">Phone:</span> {installer.contact.phone}</p>
+                                                                        <p><span className="text-muted-foreground">Email:</span> {installer.contact.email}</p>
+                                                                        <p><span className="text-muted-foreground">Address:</span> {installer.contact.address}</p>
+                                                                        {installer.contact.website && (
+                                                                            <p><span className="text-muted-foreground">Website:</span> {installer.contact.website}</p>
+                                                                        )}
+                                                                        <div className="flex flex-wrap gap-1 mt-2">
+                                                                            {installer.certifications.map((cert, i) => (
+                                                                                <span key={i} className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded">
+                                                                                    ✓ {cert}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                </details>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 </div>
@@ -1218,8 +1897,22 @@ const Dashboard = () => {
 
                                     <Card >
                                         <CardHeader>
-                                            <CardTitle className="text-foreground">Cost vs Savings Analysis</CardTitle>
-                                            <CardDescription className="text-muted-foreground">Return on investment over time</CardDescription>
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <CardTitle className="text-foreground">Energy Production Forecast</CardTitle>
+                                                    <CardDescription className="text-muted-foreground">
+                                                        {predictions?.metadata.fallback
+                                                            ? "Estimated projection"
+                                                            : predictions
+                                                                ? `AI prediction for ${predictions.metadata.location}`
+                                                                : "12-month projection"
+                                                        }
+                                                    </CardDescription>
+                                                </div>
+                                                {loadingPredictions && (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
+                                                )}
+                                            </div>
                                         </CardHeader>
                                         <CardContent>
                                             <ResponsiveContainer width="100%" height={250}>
@@ -1262,10 +1955,22 @@ const Dashboard = () => {
                                 {/* Project Summary */}
                                 <Card >
                                     <CardHeader>
-                                        <CardTitle className="text-foreground">Your Solar Journey</CardTitle>
-                                        <CardDescription className="text-muted-foreground">
-                                            Real-time project statistics
-                                        </CardDescription>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <CardTitle className="text-foreground">Cost vs Savings Analysis</CardTitle>
+                                                <CardDescription className="text-muted-foreground">
+                                                    {predictions?.metadata.fallback
+                                                        ? "Estimated projection"
+                                                        : predictions
+                                                            ? `ROI prediction (${predictions.metadata.projectCount} project${predictions.metadata.projectCount > 1 ? 's' : ''})`
+                                                            : "Return on investment over time"
+                                                    }
+                                                </CardDescription>
+                                            </div>
+                                            {loadingPredictions && (
+                                                <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
+                                            )}
+                                        </div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1281,8 +1986,8 @@ const Dashboard = () => {
                                             </div>
                                             <div className="text-center p-4  rounded-lg border border-orange-500/20">
                                                 <Zap className="w-8 h-8 mx-auto mb-2 text-orange-400" />
-                                                <div className="text-3xl font-bold text-foreground">{userSolutions.length}</div>
-                                                <div className="text-sm text-muted-foreground">Active Solutions</div>
+                                                <div className="text-3xl font-bold text-foreground">{finalizedLayouts.length + savedProjects.length}</div>
+                                                <div className="text-sm text-muted-foreground">Total Solutions</div>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -1291,7 +1996,7 @@ const Dashboard = () => {
                         )}
 
                         {activeTab === "projects" && (
-                            <Card >
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="text-foreground">My Projects</CardTitle>
                                     <CardDescription className="text-muted-foreground">
@@ -1302,7 +2007,9 @@ const Dashboard = () => {
                                     {savedProjects.length === 0 && finalizedLayouts.length === 0 ? (
                                         <div className="text-center py-12">
                                             <FolderOpen className="w-16 h-16 mx-auto mb-4 text-orange-400 opacity-50" />
-                                            <p className="text-sm text-muted-foreground mb-4">No projects yet. Start by uploading a rooftop image!</p>
+                                            <p className="text-sm text-muted-foreground mb-4">
+                                                No projects yet. Start by uploading a rooftop image!
+                                            </p>
                                             <Button
                                                 onClick={() => handleTabChange("upload")}
                                                 className="bg-linear-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
@@ -1313,62 +2020,178 @@ const Dashboard = () => {
                                         </div>
                                     ) : (
                                         <div className="space-y-4">
+                                            {/* Finalized Layouts section */}
                                             {finalizedLayouts.length > 0 && (
                                                 <>
-                                                    <h3 className="text-lg font-semibold text-foreground mb-3">Finalized Layouts</h3>
-                                                    {finalizedLayouts.map((layout) => (
-                                                        <div key={layout._id} className="p-4  rounded-lg border border-orange-500/20 hover:border-orange-500/40 transition-all">
-                                                            <div className="flex items-center justify-between mb-3">
-                                                                <div>
-                                                                    <h4 className="font-semibold text-foreground">
-                                                                        {layout.name}</h4>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {layout.location.city}, {layout.location.country}
-                                                                    </p>
+                                                    <h3 className="text-lg font-semibold text-foreground mb-3">
+                                                        Finalized Layouts
+                                                    </h3>
+                                                    {finalizedLayouts.map((layout) => {
+                                                        const statusInfo = getStatusInfo(layout);
+                                                        return (
+                                                            <div
+                                                                key={layout._id}
+                                                                className="p-4 rounded-lg border border-orange-500/20 hover:border-orange-500/40 transition-all"
+                                                            >
+                                                                <div className="flex items-center justify-between mb-3">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-foreground">
+                                                                            {layout.name}
+                                                                        </h4>
+                                                                        <p className="text-sm text-muted-foreground">
+                                                                            {layout.location.city}, {layout.location.country}
+                                                                        </p>
+                                                                    </div>
+
+                                                                    {/* Status Dropdown */}
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className={`${statusInfo.className} h-8 px-3 hover:opacity-80 cursor-pointer`}
+                                                                                disabled={updatingLayoutStatus === layout._id}
+                                                                            >
+                                                                                {updatingLayoutStatus === layout._id ? (
+                                                                                    <>
+                                                                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                                                        Updating...
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        {statusInfo.icon && (
+                                                                                            <statusInfo.icon className="w-3 h-3 mr-1" />
+                                                                                        )}
+                                                                                        {statusInfo.label}
+                                                                                        <ChevronDown className="w-3 h-3 ml-1" />
+                                                                                    </>
+                                                                                )}
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="end">
+                                                                            <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                                                                            <DropdownMenuSeparator />
+
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    handleLayoutStatusChange(layout._id, "in_review")
+                                                                                }
+                                                                                className="cursor-pointer"
+                                                                            >
+                                                                                <div className="flex items-center">
+                                                                                    <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2" />
+                                                                                    <div>
+                                                                                        <p className="font-medium">In Review</p>
+                                                                                        <p className="text-xs text-muted-foreground">
+                                                                                            Pending review
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </DropdownMenuItem>
+
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    handleLayoutStatusChange(layout._id, "ready")
+                                                                                }
+                                                                                className="cursor-pointer"
+                                                                            >
+                                                                                <div className="flex items-center">
+                                                                                    <div className="w-2 h-2 rounded-full bg-green-400 mr-2" />
+                                                                                    <div>
+                                                                                        <p className="font-medium">Ready</p>
+                                                                                        <p className="text-xs text-muted-foreground">
+                                                                                            Ready for installation
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </DropdownMenuItem>
+
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    handleLayoutStatusChange(layout._id, "reviewed")
+                                                                                }
+                                                                                className="cursor-pointer"
+                                                                            >
+                                                                                <div className="flex items-center">
+                                                                                    <div className="w-2 h-2 rounded-full bg-blue-400 mr-2" />
+                                                                                    <div>
+                                                                                        <p className="font-medium">Reviewed</p>
+                                                                                        <p className="text-xs text-muted-foreground">
+                                                                                            Expert reviewed & approved
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
                                                                 </div>
-                                                                <Badge className={layout.readyForInstallation ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"}>
-                                                                    {layout.readyForInstallation ? "Ready" : "In Review"}
-                                                                </Badge>
+
+                                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                                                                    <div>
+                                                                        <p className="text-orange-400">Panels</p>
+                                                                        <p className="font-semibold text-foreground">
+                                                                            {layout.systemSpecs.totalPanels}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-orange-400">System Size</p>
+                                                                        <p className="font-semibold text-foreground">
+                                                                            {layout.systemSpecs.systemSizeKw} kW
+                                                                        </p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-orange-400">Annual Production</p>
+                                                                        <p className="font-semibold text-foreground">
+                                                                            {layout.systemSpecs.estimatedAnnualProductionKwh.toLocaleString()}{" "}
+                                                                            kWh
+                                                                        </p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-orange-400">Monthly Savings</p>
+                                                                        <p className="font-semibold text-green-400">
+                                                                            ${layout.systemSpecs.estimatedMonthlySavings}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* View Details Button */}
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="w-full"
+                                                                    onClick={() => handleViewProjectDetails(layout._id, 'finalized')}
+                                                                >
+                                                                    <Eye className="w-4 h-4 mr-2" />
+                                                                    View Full Details
+                                                                </Button>
                                                             </div>
-                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                                                <div>
-                                                                    <p className="text-orange-400">Panels</p>
-                                                                    <p className="font-semibold text-foreground">{layout.systemSpecs.totalPanels}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-orange-400">System Size</p>
-                                                                    <p className="font-semibold text-foreground">{layout.systemSpecs.systemSizeKw} kW</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-orange-400">Annual Production</p>
-                                                                    <p className="font-semibold text-foreground">{layout.systemSpecs.estimatedAnnualProductionKwh.toLocaleString()} kWh</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-orange-400">Monthly Savings</p>
-                                                                    <p className="font-semibold text-green-400">${layout.systemSpecs.estimatedMonthlySavings}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </>
                                             )}
 
+                                            {/* Saved Projects - with ProjectCard component */}
                                             {savedProjects.length > 0 && (
                                                 <>
-                                                    <h3 className="text-lg font-semibold text-white mt-6 mb-3">Draft Projects</h3>
+                                                    <h3 className="text-lg font-semibold text-white mt-6 mb-3">
+                                                        Draft Projects
+                                                    </h3>
                                                     {savedProjects.map((project) => (
-                                                        <div key={project._id} className="p-4 rounded-lg border border-slate-500/20 hover:border-slate-500/40 transition-all">
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <h4 className="font-semibold text-foreground">{project.name}</h4>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {project.location.city}, {project.location.country}
-                                                                    </p>
-                                                                </div>
-                                                                <Badge variant="outline" className="border-slate-500/30 text-slate-400">
-                                                                    {project.status === "analyzed" ? "Analyzed" : "Draft"}
-                                                                </Badge>
-                                                            </div>
+                                                        <div key={project._id} className="space-y-3">
+                                                            <ProjectCard
+                                                                project={project}
+                                                                onDelete={handleDeleteSavedProject}
+                                                            />
+                                                            {/* Add View Details Button for Draft Projects too */}
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="w-full"
+                                                                onClick={() => handleViewProjectDetails(project._id, 'saved')}
+                                                            >
+                                                                <Eye className="w-4 h-4 mr-2" />
+                                                                View Project Details
+                                                            </Button>
                                                         </div>
                                                     ))}
                                                 </>
@@ -1386,104 +2209,363 @@ const Dashboard = () => {
                         )}
 
                         {activeTab === "recommendations" && (
-                            <Card >
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="text-foreground">Solar Recommendations</CardTitle>
                                     <CardDescription className="text-muted-foreground">
-                                        AI-generated recommendations based on your projects
+                                        {selectedProjectId
+                                            ? `AI-generated recommendations for ${selectedProjectType === 'finalized'
+                                                ? finalizedLayouts.find(l => l._id === selectedProjectId)?.name
+                                                : savedProjects.find(p => p._id === selectedProjectId)?.name
+                                            }`
+                                            : "AI-generated recommendations based on all your projects"}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {userSolutions.length === 0 ? (
-                                        <div className="text-center py-12">
-                                            <BarChart3 className="w-16 h-16 mx-auto mb-4 text-orange-400 opacity-50" />
-                                            <p className="text-sm text-muted-foreground mb-4">Complete a rooftop analysis to get personalized recommendations</p>
-                                            <Button
-                                                onClick={() => handleTabChange("upload")}
-                                                className="bg-linear-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 mb-4"
-                                            >
-                                                Get Started
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {userSolutions.map((solution) => (
-                                                <div key={solution._id} className="p-4  rounded-lg border border-orange-500/20">
-                                                    <div className="mb-3">
-                                                        <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-                                                            {solution.status.replace(/_/g, ' ').toUpperCase()}
-                                                        </Badge>
-                                                    </div>
-                                                    {solution.panelDetails && (
-                                                        <div className="mb-3">
-                                                            <h4 className="font-semibold text-foreground mb-2">Selected Panel</h4>
-                                                            <p className="text-muted-foreground">{solution.panelDetails.name}</p>
-                                                            <p className="text-sm text-muted-foreground">
-                                                                {solution.panelDetails.quantity} panels × {solution.panelDetails.powerRating}W
-                                                            </p>
-                                                            <p className="text-lg font-bold text-green-400 mt-1">
-                                                                ${solution.panelDetails.totalCost.toLocaleString()}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                    {solution.installerDetails && (
-                                                        <div>
-                                                            <h4 className="font-semibold text-foreground mb-2">Selected Installer</h4>
-                                                            <p className="text-muted-foreground">{solution.installerDetails.company}</p>
-                                                            <p className="text-sm text-muted-foreground">{solution.installerDetails.contact}</p>
-                                                            <p className="text-lg font-bold text-green-400 mt-1">
-                                                                ${solution.installerDetails.estimatedCost.toLocaleString()}
-                                                            </p>
-                                                        </div>
-                                                    )}
+                                    {(() => {
+                                        const filteredRecommendations = selectedProjectId
+                                            ? savedRecommendations.filter(rec => {
+                                                if (selectedProjectType === 'finalized') {
+                                                    return rec.finalizedLayoutId === selectedProjectId;
+                                                } else {
+                                                    return rec.savedProjectId === selectedProjectId;
+                                                }
+                                            })
+                                            : savedRecommendations;
+
+                                        const panelRecommendations = filteredRecommendations.filter(r => r.recommendationType === 'panel');
+                                        const installerRecommendations = filteredRecommendations.filter(r => r.recommendationType === 'installer');
+                                        const hasProjects = savedProjects.length > 0 || finalizedLayouts.length > 0;
+
+                                        // If no projects exist
+                                        if (!hasProjects) {
+                                            return (
+                                                <div className="text-center py-12">
+                                                    <BarChart3 className="w-16 h-16 mx-auto mb-4 text-orange-400 opacity-50" />
+                                                    <p className="text-sm text-muted-foreground mb-4">
+                                                        Complete a rooftop analysis to get personalized recommendations
+                                                    </p>
+                                                    <Button
+                                                        onClick={() => handleTabChange("upload")}
+                                                        className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                                                    >
+                                                        Get Started
+                                                    </Button>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                            );
+                                        }
+
+                                        // If project selected but no recommendations
+                                        // If project selected but no recommendations - SHOW GENERATE BUTTON
+                                        if (selectedProjectId && filteredRecommendations.length === 0) {
+                                            return (
+                                                <div className="text-center py-12">
+                                                    <BarChart3 className="w-16 h-16 mx-auto mb-4 text-orange-400 opacity-50" />
+                                                    <p className="text-sm text-muted-foreground mb-2">
+                                                        No recommendations for this project yet.
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mb-4">
+                                                        Generate AI-powered recommendations for solar panels and installers based on your project requirements.
+                                                    </p>
+                                                    <Button
+                                                        onClick={() => {
+                                                            if (selectedProjectId && selectedProjectType) {
+                                                                handleGenerateRecommendations(selectedProjectId, selectedProjectType);
+                                                            }
+                                                        }}
+                                                        className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                                                    >
+                                                        <Zap className="w-4 h-4 mr-2" />
+                                                        Generate Recommendations
+                                                    </Button>
+                                                </div>
+                                            );
+                                        }
+
+                                        // If no recommendations at all
+                                        if (filteredRecommendations.length === 0) {
+                                            return (
+                                                <div className="text-center py-12">
+                                                    <BarChart3 className="w-16 h-16 mx-auto mb-4 text-orange-400 opacity-50" />
+                                                    <p className="text-sm text-muted-foreground mb-2">
+                                                        No recommendations saved yet.
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mb-4">
+                                                        Select a project from the dropdown above to generate AI-powered recommendations.
+                                                    </p>
+                                                    <Button
+                                                        onClick={() => handleTabChange("projects")}
+                                                        className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+                                                    >
+                                                        View My Projects
+                                                    </Button>
+                                                </div>
+                                            );
+                                        }
+
+                                        // Display recommendations
+                                        return (
+                                            <div className="space-y-6">
+                                                {selectedProjectId && (
+                                                    <Alert className="bg-blue-500/10 border-blue-500/30">
+                                                        <AlertDescription className="text-sm text-blue-400">
+                                                            Showing recommendations for: <strong>
+                                                                {selectedProjectType === 'finalized'
+                                                                    ? finalizedLayouts.find(l => l._id === selectedProjectId)?.name
+                                                                    : savedProjects.find(p => p._id === selectedProjectId)?.name}
+                                                            </strong>
+                                                            <Button
+                                                                variant="link"
+                                                                size="sm"
+                                                                className="p-0 h-auto text-blue-600 hover:text-blue-500 ml-2"
+                                                                onClick={handleClearSelection}
+                                                            >
+                                                                View all recommendations
+                                                            </Button>
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
+
+                                                {/* Panel Recommendations */}
+                                                {panelRecommendations.length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <h3 className="text-lg font-semibold text-foreground flex items-center">
+                                                            <Sun className="w-5 h-5 mr-2 text-orange-400" />
+                                                            Solar Panel Recommendations ({panelRecommendations.length})
+                                                        </h3>
+
+                                                        {panelRecommendations.map((rec) => {
+                                                            const panel = rec.panelData!;
+                                                            const projectName = rec.finalizedLayoutId
+                                                                ? finalizedLayouts.find(l => l._id === rec.finalizedLayoutId)?.name
+                                                                : rec.savedProjectId
+                                                                    ? savedProjects.find(p => p._id === rec.savedProjectId)?.name
+                                                                    : "Unknown Project";
+
+                                                            const projectType = rec.finalizedLayoutId ? 'finalized' : 'saved';
+
+                                                            return (
+                                                                <div key={rec._id} className="p-4 rounded-lg border border-orange-500/20 hover:border-orange-500/40 transition-all">
+                                                                    <div className="flex items-start justify-between mb-3">
+                                                                        <div className="flex-1">
+                                                                            <div className="flex items-center gap-2 mb-2">
+                                                                                <h4 className="font-semibold text-lg text-foreground">{panel.name}</h4>
+                                                                                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                                                                                    {panel.efficiency}% Efficient
+                                                                                </Badge>
+                                                                            </div>
+                                                                            <p className="text-sm text-muted-foreground">{panel.manufacturer} • {panel.type}</p>
+
+                                                                            {/* Project Badge - Only show when viewing all projects */}
+                                                                            {!selectedProjectId && (
+                                                                                <div className="flex items-center gap-2 mt-2">
+                                                                                    <FolderOpen className="w-3 h-3 text-blue-400" />
+                                                                                    <Badge
+                                                                                        className={`text-xs cursor-pointer ${projectType === 'finalized'
+                                                                                            ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                                                            : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                                                                            }`}
+                                                                                        onClick={() => {
+                                                                                            const projectId = rec.finalizedLayoutId || rec.savedProjectId;
+                                                                                            if (projectId) {
+                                                                                                handleProjectSelect(projectId, projectType);
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        {projectName}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <p className="text-sm text-muted-foreground mb-3">{panel.description}</p>
+
+                                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Power Rating</p>
+                                                                            <p className="font-semibold text-foreground">{panel.powerRating}W</p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Warranty</p>
+                                                                            <p className="font-semibold text-foreground">{panel.warranty} years</p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Price Range</p>
+                                                                            <p className="font-semibold text-green-400">
+                                                                                ${panel.pricePerPanel.min}-${panel.pricePerPanel.max}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Total Cost</p>
+                                                                            <p className="font-semibold text-green-400">
+                                                                                ${panel.totalCost.toLocaleString()}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                                                        <div className="p-2 bg-green-500/10 rounded">
+                                                                            <p className="text-xs font-semibold text-green-400 mb-1">Pros:</p>
+                                                                            <ul className="text-xs text-green-300 space-y-0.5">
+                                                                                {panel.pros.map((pro, i) => (
+                                                                                    <li key={i}>• {pro}</li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                        <div className="p-2 bg-red-500/10 rounded">
+                                                                            <p className="text-xs font-semibold text-red-400 mb-1">Cons:</p>
+                                                                            <ul className="text-xs text-red-300 space-y-0.5">
+                                                                                {panel.cons.map((con, i) => (
+                                                                                    <li key={i}>• {con}</li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="p-3 bg-muted/50 rounded-lg">
+                                                                        <p className="text-xs font-semibold text-foreground mb-1">Why Recommended:</p>
+                                                                        <p className="text-xs text-muted-foreground">{panel.reasoning}</p>
+                                                                    </div>
+
+                                                                    {rec.userNotes && (
+                                                                        <div className="mt-2 p-2 bg-blue-500/10 rounded">
+                                                                            <p className="text-xs font-semibold text-blue-400">Your Notes:</p>
+                                                                            <p className="text-xs text-blue-300">{rec.userNotes}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                {/* Installer Recommendations */}
+                                                {installerRecommendations.length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <h3 className="text-lg font-semibold text-foreground flex items-center">
+                                                            <Home className="w-5 h-5 mr-2 text-blue-400" />
+                                                            Installer Recommendations ({installerRecommendations.length})
+                                                        </h3>
+
+                                                        {installerRecommendations.map((rec) => {
+                                                            const installer = rec.installerData!;
+                                                            const projectName = rec.finalizedLayoutId
+                                                                ? finalizedLayouts.find(l => l._id === rec.finalizedLayoutId)?.name
+                                                                : rec.savedProjectId
+                                                                    ? savedProjects.find(p => p._id === rec.savedProjectId)?.name
+                                                                    : "Unknown Project";
+
+                                                            const projectType = rec.finalizedLayoutId ? 'finalized' : 'saved';
+
+                                                            return (
+                                                                <div key={rec._id} className="p-4 rounded-lg border border-blue-500/20 hover:border-blue-500/40 transition-all">
+                                                                    <div className="flex items-start justify-between mb-3">
+                                                                        <div className="flex-1">
+                                                                            <div className="flex items-center gap-2 mb-2">
+                                                                                <h4 className="font-semibold text-lg text-foreground">{installer.company}</h4>
+                                                                                {installer.isLocal && (
+                                                                                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+                                                                                        Local
+                                                                                    </Badge>
+                                                                                )}
+                                                                                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
+                                                                                    {installer.rating} ★
+                                                                                </Badge>
+                                                                            </div>
+                                                                            <p className="text-sm text-muted-foreground">Contact: {installer.name}</p>
+
+                                                                            {/* Project Badge - Only show when viewing all projects */}
+                                                                            {!selectedProjectId && (
+                                                                                <div className="flex items-center gap-2 mt-2">
+                                                                                    <FolderOpen className="w-3 h-3 text-blue-400" />
+                                                                                    <Badge
+                                                                                        className={`text-xs cursor-pointer ${projectType === 'finalized'
+                                                                                            ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                                                            : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                                                                            }`}
+                                                                                        onClick={() => {
+                                                                                            const projectId = rec.finalizedLayoutId || rec.savedProjectId;
+                                                                                            if (projectId) {
+                                                                                                handleProjectSelect(projectId, projectType);
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        {projectName}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <p className="text-sm text-muted-foreground mb-3">{installer.description}</p>
+
+                                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Experience</p>
+                                                                            <p className="font-semibold text-foreground">{installer.yearsInBusiness} years</p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Projects</p>
+                                                                            <p className="font-semibold text-foreground">{installer.projectsCompleted.toLocaleString()}</p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Budget Range</p>
+                                                                            <p className="font-semibold text-green-400">
+                                                                                ${installer.budgetRange.min.toLocaleString()}-${installer.budgetRange.max.toLocaleString()}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs text-muted-foreground">Est. Cost</p>
+                                                                            <p className="font-semibold text-green-400">
+                                                                                ${installer.estimatedCost.toLocaleString()}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="mb-3">
+                                                                        <p className="text-xs font-semibold text-foreground mb-1">Contact:</p>
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                                                            <p className="text-muted-foreground">📧 {installer.email}</p>
+                                                                            <p className="text-muted-foreground">📞 {installer.phone}</p>
+                                                                            {installer.website && (
+                                                                                <p className="text-muted-foreground">🌐 {installer.website}</p>
+                                                                            )}
+                                                                            <p className="text-muted-foreground">📍 {installer.serviceArea}</p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex flex-wrap gap-1 mb-3">
+                                                                        {installer.certifications.map((cert, i) => (
+                                                                            <Badge key={i} variant="outline" className="text-xs">
+                                                                                {cert}
+                                                                            </Badge>
+                                                                        ))}
+                                                                    </div>
+
+                                                                    <div className="p-3 bg-muted/50 rounded-lg">
+                                                                        <p className="text-xs font-semibold text-foreground mb-1">Why Recommended:</p>
+                                                                        <p className="text-xs text-muted-foreground">{installer.reasoning}</p>
+                                                                    </div>
+
+                                                                    {rec.userNotes && (
+                                                                        <div className="mt-2 p-2 bg-blue-500/10 rounded">
+                                                                            <p className="text-xs font-semibold text-blue-400">Your Notes:</p>
+                                                                            <p className="text-xs text-blue-300">{rec.userNotes}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </CardContent>
                             </Card>
                         )}
 
-                        {activeTab === "settings" && (
-                            <Card >
-                                <CardHeader>
-                                    <CardTitle className="text-foreground">Settings</CardTitle>
-                                    <CardDescription className="text-muted-foreground">
-                                        Manage your account and application preferences
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-6">
-                                        <div>
-                                            <h3 className="text-lg font-medium mb-3 text-foreground">Account Settings</h3>
-                                            <div className="space-y-3">
-                                                <Button variant="outline" className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-orange-300 hover:text-orange-400">
-                                                    <Settings className="w-4 h-4 mr-2" />
-                                                    Profile Settings
-                                                </Button>
-                                                <Button variant="outline" className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-orange-300 hover:text-orange-400">
-                                                    <Bell className="w-4 h-4 mr-2" />
-                                                    Notification Preferences
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-medium mb-3 text-foreground">Application Settings</h3>
-                                            <div className="space-y-3">
-                                                <Button variant="outline" className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-orange-300 hover:text-orange-400">
-                                                    <Sun className="w-4 h-4 mr-2" />
-                                                    Theme Preferences
-                                                </Button>
-                                                <Button variant="outline" className="w-full justify-start border-orange-500/30 hover:bg-orange-500/10 text-orange-300 hover:text-orange-400">
-                                                    <MapPin className="w-4 h-4 mr-2" />
-                                                    Location Settings
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
                     </div>
 
                     {/* Right Panel - Notifications & Stats */}
@@ -1514,13 +2596,13 @@ const Dashboard = () => {
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-muted-foreground">Draft Projects</span>
                                         <span className="font-bold text-amber-400">
-                                            {savedProjects.filter((p: SavedProject) => p.status === "draft").length}
+                                            {savedProjects.length}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-muted-foreground">Solutions Selected</span>
                                         <span className="font-bold text-foreground">
-                                            {userSolutions.length}
+                                            {finalizedLayouts.length}
                                         </span>
                                     </div>
                                     {stats.hasData && (
@@ -1555,57 +2637,99 @@ const Dashboard = () => {
                             </Card>
 
                             {/* Notifications */}
-                            <Card >
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base flex items-center text-foreground">
-                                        <Bell className="w-4 h-4 mr-2 text-yellow-400" />
-                                        Notifications
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {finalizedLayouts.length > 0 ? (
-                                        <Alert className="bg-orange-500/10 border-orange-500/30">
-                                            <AlertDescription className="text-sm text-orange-200">
-                                                Your latest analysis is complete!
-                                                <Button variant="link" className="p-0 h-auto text-orange-400 hover:text-orange-300 ml-1">
-                                                    View results
-                                                </Button>
-                                            </AlertDescription>
-                                        </Alert>
-                                    ) : (
-                                        <Alert >
-                                            <AlertDescription className="text-sm text-muted-foreground">
-                                                No new notifications
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <NotificationPanel />
 
                             {/* AI Assistant */}
-                            <Card >
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base flex items-center text-foreground">
-                                        <MessageCircle className="w-4 h-4 mr-2 text-amber-400" />
-                                        AI Solar Assistant
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className=" rounded-lg p-3 mb-3 border border-orange-500/20">
-                                        <p className="text-sm text-muted-foreground">
-                                            Hi! I&apos;m here to help with any questions about solar energy,
-                                            your analysis results, or installation options.
-                                        </p>
-                                    </div>
-                                    <Button variant="outline" className="text-sm text-muted-foreground w-full border-amber-500/30 hover:bg-amber-500/10">
-                                        Start Conversation
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                            <AISolarAssistant
+                                userContext={{
+                                    hasProjects: savedProjects.length > 0 || finalizedLayouts.length > 0,
+                                    projectCount: savedProjects.length + finalizedLayouts.length,
+                                    totalSystemSize: finalizedLayouts.reduce((sum, l) => sum + (l.systemSpecs?.systemSizeKw || 0), 0) +
+                                        savedProjects.reduce((sum, p) => sum + (p.analysis?.totalPowerKw || 0), 0),
+                                    location: finalizedLayouts[0]?.location
+                                        ? `${finalizedLayouts[0].location.city}, ${finalizedLayouts[0].location.country}`
+                                        : savedProjects[0]?.location
+                                            ? `${savedProjects[0].location.city}, ${savedProjects[0].location.country}`
+                                            : undefined
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
             </div>
+            {/* Project Detail Modal */}
+            {isModalOpen && selectedProjectForModal && modalProjectType && (
+                <ProjectDetailModal
+                    isOpen={isModalOpen}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setSelectedProjectForModal(null);
+                        setModalProjectType(null);
+                    }}
+                    project={selectedProjectForModal}
+                    projectType={modalProjectType}
+                />
+            )}
+            {/* Recommendations Generator Modal */}
+            {showRecommendationsGenerator && selectedProjectId && selectedProjectType && (
+                <RecommendationsGenerator
+                    isOpen={showRecommendationsGenerator}
+                    onClose={() => {
+                        setShowRecommendationsGenerator(false);
+                        setGeneratingForProjectId(null);
+                    }}
+                    project={
+                        selectedProjectType === 'finalized'
+                            ? finalizedLayouts.find(l => l._id === selectedProjectId)!
+                            : savedProjects.find(p => p._id === selectedProjectId)!
+                    }
+                    projectType={selectedProjectType}
+                    onRecommendationsGenerated={handleRecommendationsGenerated}
+                />
+            )}
+
+            {/* Display Generated Recommendations (if any) */}
+            {generatedRecommendations && selectedProjectId && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-slate-900 rounded-2xl max-w-6xl w-full border border-orange-500/30 shadow-2xl my-8">
+                        <div className="relative bg-gradient-to-r from-orange-500 to-yellow-500 p-6 rounded-t-2xl">
+                            <button
+                                aria-label="just a label"
+                                onClick={() => setGeneratedRecommendations(null)}
+                                className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all"
+                            >
+                                <X className="w-5 h-5 text-white" />
+                            </button>
+                            <h2 className="text-2xl font-bold text-white">Generated Recommendations</h2>
+                        </div>
+                        <div className="p-6 max-h-[70vh] overflow-y-auto">
+                            <SolarRecommendations
+                                finalizedLayoutId={selectedProjectType === 'finalized' ? selectedProjectId as Id<'finalizedLayouts'> : null}
+                                savedProjectId={selectedProjectType === 'saved' ? selectedProjectId as Id<'savedProjects'> : null}
+                                location={
+                                    selectedProjectType === 'finalized'
+                                        ? finalizedLayouts.find(l => l._id === selectedProjectId)!.location
+                                        : savedProjects.find(p => p._id === selectedProjectId)!.location
+                                }
+                                systemSpecs={
+                                    selectedProjectType === 'finalized'
+                                        ? finalizedLayouts.find(l => l._id === selectedProjectId)!.systemSpecs
+                                        : {
+                                            totalPanels: savedProjects.find(p => p._id === selectedProjectId)!.analysis?.totalPanels || 0,
+                                            systemSizeKw: savedProjects.find(p => p._id === selectedProjectId)!.analysis?.totalPowerKw || 0,
+                                            estimatedAnnualProductionKwh: savedProjects.find(p => p._id === selectedProjectId)!.analysis?.annualProduction || 0,
+                                        }
+                                }
+                                analysis={
+                                    selectedProjectType === 'finalized'
+                                        ? finalizedLayouts.find(l => l._id === selectedProjectId)!.analysis
+                                        : savedProjects.find(p => p._id === selectedProjectId)!.analysis
+                                }
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

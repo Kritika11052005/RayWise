@@ -1,7 +1,7 @@
 // convex/savedProjects.ts
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx,QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 
 type PolygonPoint = {
@@ -94,6 +94,7 @@ export const saveProject = mutation({
     }),
     imageUrl: v.optional(v.string()),
     imageSource: v.union(v.literal("upload"), v.literal("map")),
+    renderedLayoutImage: v.optional(v.string()), // NEW: Add this
     polygonPoints: v.array(
       v.object({
         x: v.number(),
@@ -135,6 +136,7 @@ export const saveProject = mutation({
       location: args.location,
       imageUrl: args.imageUrl,
       imageSource: args.imageSource,
+      renderedLayoutImage: args.renderedLayoutImage,
       polygonPoints: args.polygonPoints,
       imageWidth: args.imageWidth,
       imageHeight: args.imageHeight,
@@ -149,12 +151,15 @@ export const saveProject = mutation({
   },
 });
 
+
+
 // Update an existing saved project
 export const updateProject = mutation({
   args: {
     projectId: v.id("savedProjects"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
+    renderedLayoutImage: v.optional(v.string()),
     polygonPoints: v.optional(v.array(
       v.object({
         x: v.number(),
@@ -193,10 +198,12 @@ export const updateProject = mutation({
       throw new Error("Unauthorized");
     }
 
+    // 🔍 CHECK IF THIS IS A NEW ANALYSIS (before updates)
+    const isNewAnalysis = args.analysis && project.status === "draft";
+
     const updates: SavedProjectUpdates = {
       updatedAt: Date.now(),
     };
-
     if (args.name) updates.name = args.name;
     if (args.description) updates.description = args.description;
     if (args.polygonPoints) updates.polygonPoints = args.polygonPoints;
@@ -208,11 +215,26 @@ export const updateProject = mutation({
 
     await ctx.db.patch(args.projectId, updates);
 
+    // 🎉 CREATE NOTIFICATION IF THIS IS A NEW ANALYSIS
+    if (isNewAnalysis) {
+      await ctx.db.insert("notifications", {
+        userId: user._id,
+        title: "Your rooftop analysis is complete!",
+        message: `Analysis for "${args.name || project.name}" is ready. Check your dashboard to view results and get solar recommendations.`,
+        type: "analysis_complete",
+        read: false,
+        createdAt: Date.now(),
+        link: "/dashboard",
+      });
+    }
+
     return args.projectId;
   },
 });
 
 // Get all saved projects for current user
+
+
 export const getUserProjects = query({
   args: {},
   handler: async (ctx) => {
@@ -232,19 +254,17 @@ export const getUserProjects = query({
 
     // If no user found by token, try by email (with type guard)
     if (!user && identity.email) {
-      const email = identity.email; // TypeScript now knows this is string, not undefined
+      const email = identity.email;
       user = await ctx.db
         .query("users")
         .withIndex("by_email", (q) => q.eq("email", email))
         .unique();
     }
 
-    // If still no user, return empty
     if (!user) {
       return [];
     }
 
-    // Fetch projects for this user
     const projects = await ctx.db
       .query("savedProjects")
       .withIndex("by_user", (q) => q.eq("userId", user._id))

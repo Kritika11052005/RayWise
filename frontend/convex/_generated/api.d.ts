@@ -10,6 +10,7 @@
 
 import type * as finalizedLayouts from "../finalizedLayouts.js";
 import type * as http from "../http.js";
+import type * as notifications from "../notifications.js";
 import type * as recommendations from "../recommendations.js";
 import type * as rooftopAnalysis from "../rooftopAnalysis.js";
 import type * as savedProject from "../savedProject.js";
@@ -33,6 +34,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   finalizedLayouts: typeof finalizedLayouts;
   http: typeof http;
+  notifications: typeof notifications;
   recommendations: typeof recommendations;
   rooftopAnalysis: typeof rooftopAnalysis;
   savedProject: typeof savedProject;

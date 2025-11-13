@@ -1,9 +1,53 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, Square, MousePointer, Zap, RotateCcw, Download, Loader2, Check, X, MapPin, Map, ZoomIn, ZoomOut, Move, Save, CheckCircle, Trash2 } from 'lucide-react';
-import { useMutation } from 'convex/react';
+import { useMutation,useQuery } from 'convex/react';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
 import SolarRecommendations from './SolarRecommendations';
+const compressImage = async (base64Image: string, maxSizeKB: number = 800): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      
+      // Reduce dimensions if too large
+      const maxDim = 1200;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = (height / width) * maxDim;
+          width = maxDim;
+        } else {
+          width = (width / height) * maxDim;
+          height = maxDim;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas context failed'));
+      
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Compress with reducing quality until under size limit
+      let quality = 0.8;
+      let compressed = canvas.toDataURL('image/jpeg', quality);
+      const maxBytes = maxSizeKB * 1024;
+      
+      while (compressed.length * 0.75 > maxBytes && quality > 0.1) {
+        quality -= 0.1;
+        compressed = canvas.toDataURL('image/jpeg', quality);
+      }
+      
+      console.log(`Compressed to ${(compressed.length * 0.75 / 1024).toFixed(0)}KB`);
+      resolve(compressed);
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = base64Image;
+  });
+};
 const RooftopAnalyzer = () => {
   type Point = { x: number; y: number };
   type Panel = { x: number; y: number; width: number; height: number; rotation: number };
@@ -19,6 +63,8 @@ const RooftopAnalyzer = () => {
   } | null;
 
   const [image, setImage] = useState<File | null>(null);
+  const createNotification = useMutation(api.notifications.createNotification);
+const currentUser = useQuery(api.users.getCurrentUser);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [polygonPoints, setPolygonPoints] = useState<Point[]>([]);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
@@ -618,79 +664,109 @@ const RooftopAnalyzer = () => {
   };
 
   // Analyze with Gemini API
-  const analyzeRooftop = async () => {
-    if (!image || polygonPoints.length < 3) {
-      alert('Please upload an image and draw a polygon area first');
-      return;
-    }
+  
+const analyzeRooftop = async () => {
+  if (!image || polygonPoints.length < 3) {
+    alert('Please upload an image and draw a polygon area first');
+    return;
+  }
 
-    if (!location) {
-      setShowLocationModal(true);
-      return;
-    }
+  if (!location) {
+    setShowLocationModal(true);
+    return;
+  }
 
-    setAnalyzing(true);
+  setAnalyzing(true);
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(image);
-      reader.onload = async () => {
-        const base64Image = reader.result;
+  try {
+    const reader = new FileReader();
+    reader.readAsDataURL(image);
+    reader.onload = async () => {
+      const base64Image = reader.result;
 
-        const payload = {
-          image: base64Image,
-          polygon: polygonPoints,
-          imageWidth: canvasRef.current?.width ?? 0,
-          imageHeight: canvasRef.current?.height ?? 0,
-          location: location
+      const payload = {
+        image: base64Image,
+        polygon: polygonPoints,
+        imageWidth: canvasRef.current?.width ?? 0,
+        imageHeight: canvasRef.current?.height ?? 0,
+        location: location
+      };
+
+      const response = await fetch('/api/analyze-rooftop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Ensure all numeric fields are properly typed
+        const typedAnalysis = {
+          ...result.analysis,
+          totalPanels: Number(result.analysis.totalPanels),
+          totalPowerKw: Number(result.analysis.totalPowerKw),
+          orientation: typeof result.analysis.orientation === 'string'
+            ? result.analysis.orientation
+            : Number(result.analysis.orientation),
+          annualProduction: Number(result.analysis.annualProduction),
         };
 
-        const response = await fetch('/api/analyze-rooftop', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload)
-        });
+        setAnalysis(typedAnalysis);
+        setPanelLayout(result.panelLayout);
 
-        const result = await response.json();
-
-        if (result.success) {
-          // Ensure all numeric fields are properly typed
-          const typedAnalysis = {
-            ...result.analysis,
-            totalPanels: Number(result.analysis.totalPanels),
-            totalPowerKw: Number(result.analysis.totalPowerKw),
-            orientation: typeof result.analysis.orientation === 'string'
-              ? result.analysis.orientation
-              : Number(result.analysis.orientation),
-            annualProduction: Number(result.analysis.annualProduction),
-          };
-
-          setAnalysis(typedAnalysis);
-          setPanelLayout(result.panelLayout);
-        } else {
-          alert('Analysis failed: ' + result.error);
+        // 🎉 ADD NOTIFICATION HERE - After successful analysis
+        if (currentUser) {
+          try {
+            await createNotification({
+              userId: currentUser._id,
+              title: "Your rooftop analysis is complete!",
+              message: `Analysis completed successfully! Your rooftop can support ${typedAnalysis.totalPanels} panels generating ${typedAnalysis.totalPowerKw} kW. Check the results below.`,
+              type: "analysis_complete",
+              link: "/dashboard",
+            });
+          } catch (notifError) {
+            console.error('Failed to create notification:', notifError);
+            // Don't block the analysis if notification fails
+          }
         }
-      };
+      } else {
+        alert('Analysis failed: ' + result.error);
+      }
+    };
+  } catch (error) {
+    console.error('Analysis error:', error);
+    alert('Failed to analyze rooftop. Please try again.');
+  } finally {
+    setAnalyzing(false);
+  }
+};
+
+  const captureCanvasImage = async (): Promise<string | null> => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    
+    try {
+      const base64 = canvas.toDataURL('image/png');
+      const compressed = await compressImage(base64, 800);
+      return compressed;
     } catch (error) {
-      console.error('Analysis error:', error);
-      alert('Failed to analyze rooftop. Please try again.');
-    } finally {
-      setAnalyzing(false);
+      console.error('Error capturing canvas:', error);
+      return null;
     }
   };
-
   // Save Project
   const handleSaveProject = async () => {
     if (!location || !imageUrl || polygonPoints.length < 3) {
       alert('Please ensure you have:\n- Set a location\n- Uploaded/fetched an image\n- Drawn a polygon area');
       return;
     }
-
+  
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+  
     setSaving(true);
     try {
       const projectName = prompt('Enter a name for this project:');
@@ -698,28 +774,31 @@ const RooftopAnalyzer = () => {
         setSaving(false);
         return;
       }
-
+  
       const description = prompt('Enter a description (optional):') || undefined;
-
+  
+      // NOW WITH AWAIT since it's async
+      const renderedImage = await captureCanvasImage();
+  
       if (currentProjectId) {
-        // Update existing project
         await updateProjectMutation({
           projectId: currentProjectId,
           name: projectName,
           description,
+          renderedLayoutImage: renderedImage || undefined,
           polygonPoints,
           analysis: analysis || undefined,
           panelLayout: panelLayout.length > 0 ? panelLayout : undefined,
         });
         alert('Project updated successfully!');
       } else {
-        // Create new project
         const projectId = await saveProjectMutation({
           name: projectName,
           description,
           location,
-          imageUrl,
+          imageUrl, // Keep original for now
           imageSource,
+          renderedLayoutImage: renderedImage || undefined,
           polygonPoints,
           imageWidth: canvas.width,
           imageHeight: canvas.height,
@@ -743,10 +822,10 @@ const RooftopAnalyzer = () => {
       alert('Please complete the analysis before finalizing:\n- Set location\n- Draw polygon\n- Run AI analysis');
       return;
     }
-
+  
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+  
     setFinalizing(true);
     try {
       const layoutName = prompt('Enter a name for this finalized layout:');
@@ -754,24 +833,28 @@ const RooftopAnalyzer = () => {
         setFinalizing(false);
         return;
       }
-
+  
       const description = prompt('Enter a description (optional):') || undefined;
-
+  
+      // NOW WITH AWAIT
+      const renderedImage = await captureCanvasImage();
+  
       const finalizedId = await finalizeLayoutMutation({
         savedProjectId: currentProjectId ?? undefined,
         name: layoutName,
         description,
         location,
         imageUrl: imageUrl ?? undefined,
+        renderedLayoutImage: renderedImage || undefined,
         polygonPoints,
         imageWidth: canvas.width,
         imageHeight: canvas.height,
         analysis,
         panelLayout,
       });
-
+  
       setCurrentFinalizedId(finalizedId);
-      alert('Layout finalized successfully! It has been saved for expert review and installation planning.');
+      alert('Layout finalized successfully!');
     } catch (error) {
       console.error('Finalize layout error:', error);
       alert('Failed to finalize layout: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -869,7 +952,7 @@ const RooftopAnalyzer = () => {
                   setImageSource('map');
                   setShowLocationModal(true);
                 }}
-                className="w-full flex items-center justify-center gap-3 bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white px-4 py-4 rounded-lg font-medium transition-colors shadow-md"
+                className="w-full flex items-center justify-center gap-3 bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white px-4 py-4 rounded-lg font-medium transition-colors shadow-md"
               >
                 <Map className="w-5 h-5" />
                 <div className="text-left">
@@ -977,7 +1060,7 @@ const RooftopAnalyzer = () => {
         <div className="bg-card rounded-lg p-4 border  border-border flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-orange-400" />
-            <span className="font-medium text-white">
+            <span className="font-medium text-foreground">
               {location.city}, {location.country}
             </span>
             {location.lat && location.lon && (

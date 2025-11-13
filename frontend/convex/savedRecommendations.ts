@@ -269,7 +269,73 @@ export const getSavedRecommendation = query({
     return saved;
   },
 });
+// Get all saved recommendations for the current user
+// Get all saved recommendations for the current user
+// Get all saved recommendations for the current user
+export const getUserRecommendations = query({
+  args: {
+    type: v.optional(v.union(v.literal("panel"), v.literal("installer"))),
+    finalizedLayoutId: v.optional(v.id("finalizedLayouts")),
+    savedProjectId: v.optional(v.id("savedProjects")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      console.log('❌ No identity found');
+      return [];
+    }
 
+    // Try to find user by token identifier (same logic as savedProjects.ts)
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    // If no user found by token, try by email (with type guard)
+    if (!user && identity.email) {
+      const email = identity.email;
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .unique();
+    }
+
+    if (!user) {
+      console.log('❌ No user found for identity:', identity.email);
+      return [];
+    }
+
+    console.log('✅ User found:', user._id);
+
+    // Get all recommendations for this user
+    const allRecommendations = await ctx.db
+      .query("savedRecommendations")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .collect();
+
+    console.log('✅ Found recommendations:', allRecommendations.length);
+
+    // Apply filters if provided
+    let filtered = allRecommendations;
+
+    if (args.type) {
+      filtered = filtered.filter(r => r.recommendationType === args.type);
+    }
+
+    if (args.finalizedLayoutId) {
+      filtered = filtered.filter(r => r.finalizedLayoutId === args.finalizedLayoutId);
+    }
+
+    if (args.savedProjectId) {
+      filtered = filtered.filter(r => r.savedProjectId === args.savedProjectId);
+    }
+
+    return filtered;
+  },
+});
 // Delete a saved recommendation
 export const deleteSavedRecommendation = mutation({
   args: {

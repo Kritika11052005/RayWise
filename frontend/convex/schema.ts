@@ -161,7 +161,6 @@ export default defineSchema({
     name: v.string(),
     description: v.optional(v.string()),
     
-    // Location info
     location: v.object({
       city: v.string(),
       country: v.string(),
@@ -169,12 +168,11 @@ export default defineSchema({
       lon: v.optional(v.number()),
     }),
     
-    // Image data
-    imageStorageId: v.optional(v.id("_storage")), // Convex storage ID for image
-    imageUrl: v.optional(v.string()), // Temporary URL if not stored
+    imageStorageId: v.optional(v.id("_storage")),
+    imageUrl: v.optional(v.string()),
     imageSource: v.union(v.literal("upload"), v.literal("map")),
+    renderedLayoutImage: v.optional(v.string()), // NEW: Base64 canvas image
     
-    // Polygon points (drawn area)
     polygonPoints: v.array(
       v.object({
         x: v.number(),
@@ -182,11 +180,9 @@ export default defineSchema({
       })
     ),
     
-    // Image dimensions
     imageWidth: v.number(),
     imageHeight: v.number(),
     
-    // Analysis results (if analyzed)
     analysis: v.optional(v.object({
       totalPanels: v.number(),
       totalPowerKw: v.number(),
@@ -198,7 +194,6 @@ export default defineSchema({
       shadowAnalysis: v.optional(v.string()),
     })),
     
-    // Panel layout (if analyzed)
     panelLayout: v.optional(v.array(
       v.object({
         x: v.number(),
@@ -209,7 +204,6 @@ export default defineSchema({
       })
     )),
     
-    // Metadata
     createdAt: v.number(),
     updatedAt: v.number(),
     status: v.union(v.literal("draft"), v.literal("analyzed")),
@@ -217,15 +211,14 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_created_at", ["createdAt"]),
-
-  // NEW: Finalized Layouts (Expert-reviewed, production-ready)
+  
+  // Full updated finalizedLayouts table:
   finalizedLayouts: defineTable({
     userId: v.id("users"),
-    savedProjectId: v.optional(v.id("savedProjects")), // Link to original saved project
+    savedProjectId: v.optional(v.id("savedProjects")),
     name: v.string(),
     description: v.optional(v.string()),
     
-    // Location info
     location: v.object({
       city: v.string(),
       country: v.string(),
@@ -233,11 +226,10 @@ export default defineSchema({
       lon: v.optional(v.number()),
     }),
     
-    // Image data
     imageStorageId: v.optional(v.id("_storage")),
     imageUrl: v.optional(v.string()),
+    renderedLayoutImage: v.optional(v.string()), // NEW: Base64 canvas image
     
-    // Finalized polygon
     polygonPoints: v.array(
       v.object({
         x: v.number(),
@@ -245,11 +237,9 @@ export default defineSchema({
       })
     ),
     
-    // Image dimensions
     imageWidth: v.number(),
     imageHeight: v.number(),
     
-    // Final analysis
     analysis: v.object({
       totalPanels: v.number(),
       totalPowerKw: v.number(),
@@ -261,7 +251,6 @@ export default defineSchema({
       shadowAnalysis: v.optional(v.string()),
     }),
     
-    // Final panel layout
     panelLayout: v.array(
       v.object({
         x: v.number(),
@@ -272,7 +261,6 @@ export default defineSchema({
       })
     ),
     
-    // System specifications (calculated from layout)
     systemSpecs: v.object({
       totalPanels: v.number(),
       systemSizeKw: v.number(),
@@ -281,12 +269,10 @@ export default defineSchema({
       co2OffsetKgPerYear: v.number(),
     }),
     
-    // Installation readiness
     readyForInstallation: v.boolean(),
     expertReviewed: v.boolean(),
     expertNotes: v.optional(v.string()),
     
-    // Metadata
     finalizedAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -294,6 +280,8 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_finalized_at", ["finalizedAt"])
     .index("by_ready_for_installation", ["userId", "readyForInstallation"]),
+
+  
 
   // User Selected Solutions - stores user's selected solar solutions for finalized layouts
   
