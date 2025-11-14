@@ -6,6 +6,7 @@ import { ThemeProvider } from "./components/theme-provider";
 import { ConvexClientProvider } from "./components/ConvexClientProvider";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -73,6 +74,12 @@ export default function RootLayout({
                 {children}
               </main>
               <Footer />
+              <Toaster 
+                position="top-right"
+                richColors
+                closeButton
+                theme="dark"
+              />
             </ThemeProvider>
           </ConvexClientProvider>
         </body>

@@ -773,52 +773,106 @@ const analyzeRooftop = async () => {
     if (!canvas) return;
   
     setSaving(true);
+    
+    // Small delay to ensure state updates
+    await new Promise(resolve => setTimeout(resolve, 100));
+  
     try {
-      let projectName = '';
-      let description = '';
-      
-      await new Promise<void>((resolve) => {
+      // Get project name
+      const projectName = await new Promise<string>((resolve) => {
+        let inputValue = '';
+        let resolved = false;
+        
         toast('Enter project name', {
           action: {
             label: 'Save',
             onClick: () => {
-              const input = document.querySelector('input[data-project-name]') as HTMLInputElement;
-              projectName = input?.value || '';
-              resolve();
+              if (!resolved) {
+                resolved = true;
+                resolve(inputValue);
+              }
             }
           },
           cancel: {
             label: 'Cancel',
-            onClick: () => resolve()
+            onClick: () => {
+              if (!resolved) {
+                resolved = true;
+                resolve('');
+              }
+            }
           },
           duration: Infinity,
           closeButton: false,
-          description: <input data-project-name type="text" placeholder="Project name" className="w-full mt-2 px-3 py-2 border rounded" />
+          description: (
+            <input 
+              type="text" 
+              placeholder="Project name" 
+              className="w-full mt-2 px-3 py-2 border rounded"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                inputValue = e.target.value;
+              }}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter' && !resolved) {
+                  resolved = true;
+                  resolve(inputValue);
+                }
+              }}
+              autoFocus
+            />
+          )
         });
       });
       
-      if (!projectName) {
+      if (!projectName.trim()) {
         setSaving(false);
+        toast.info('Save cancelled');
         return;
       }
   
-      await new Promise<void>((resolve) => {
+      // Get description
+      const description = await new Promise<string>((resolve) => {
+        let inputValue = '';
+        let resolved = false;
+  
         toast('Enter description (optional)', {
           action: {
             label: 'Continue',
             onClick: () => {
-              const input = document.querySelector('input[data-project-desc]') as HTMLInputElement;
-              description = input?.value || '';
-              resolve();
+              if (!resolved) {
+                resolved = true;
+                resolve(inputValue);
+              }
             }
           },
           cancel: {
             label: 'Skip',
-            onClick: () => resolve()
+            onClick: () => {
+              if (!resolved) {
+                resolved = true;
+                resolve('');
+              }
+            }
           },
           duration: Infinity,
           closeButton: false,
-          description: <input data-project-desc type="text" placeholder="Description" className="w-full mt-2 px-3 py-2 border rounded" />
+          description: (
+            <input 
+              type="text" 
+              placeholder="Description" 
+              className="w-full mt-2 px-3 py-2 border rounded"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                inputValue = e.target.value;
+              }}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter' && !resolved) {
+                  resolved = true;
+                  resolve(inputValue);
+                }
+              }}
+              autoFocus
+            />
+          )
         });
       });
   
