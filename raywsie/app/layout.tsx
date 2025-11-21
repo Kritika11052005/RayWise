@@ -9,6 +9,8 @@ import Footer from "./components/Footer";
 import { Toaster } from "sonner";
 import "./globals.css";
 
+
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -63,6 +65,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <ConvexClientProvider>
+          
             <ThemeProvider 
               attribute="class" 
               defaultTheme="system" 
@@ -81,6 +84,7 @@ export default function RootLayout({
                 theme="dark"
               />
             </ThemeProvider>
+            
           </ConvexClientProvider>
         </body>
       </html>

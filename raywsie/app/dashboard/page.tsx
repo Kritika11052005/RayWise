@@ -311,6 +311,27 @@ type SolarPlansResponse = {
         recommendation: string;
     };
 } | null;
+// Add this component at the top of your file
+const DashboardSkeleton = () => (
+    <div className="min-h-screen bg-background">
+        <div className="ml-64 p-8">
+            <div className="animate-pulse">
+                {/* Header Skeleton */}
+                <div className="h-8 bg-gray-700 rounded w-64 mb-6"></div>
+                
+                {/* Stats Cards Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="h-32 bg-gray-800 rounded-lg border border-gray-700"></div>
+                    ))}
+                </div>
+                
+                {/* Projects Skeleton */}
+                <div className="h-96 bg-gray-800 rounded-lg border border-gray-700"></div>
+            </div>
+        </div>
+    </div>
+);
 const Dashboard = () => {
     const { user, isLoaded, isSignedIn } = useUser();
 
@@ -324,16 +345,38 @@ const Dashboard = () => {
         insights: string[];
     } | null>(null);
     const [roiLoading, setRoiLoading] = useState(false);
-    // Fetch real data from Convex
-    const savedProjects = useQuery(api.savedProject.getUserProjects) ?? [];
-    const finalizedLayouts = useQuery(api.finalizedLayouts.getUserFinalizedLayouts) ?? [];
-    const userSolutions = useQuery(api.recommendations.getUserSolutions) ?? [];
-    const savedRecommendations = useQuery(api.savedRecommendations.getUserRecommendations, {}) ?? [];
-    const currentUser = useQuery(api.users.getCurrentUser);
-    const debugInfo = useQuery(api.savedProject.debugUser);
+    // ✅ ONE QUERY FOR ALL DATA
+    const dashboardData = useQuery(
+        api.dashboard.getDashboardData,
+        isLoaded && isSignedIn ? {} : "skip"  // ✅ Must check BOTH
+    );
+// Add this immediately after
+// Add this debug log
+
+   
+    // Destructure with defaults
+    const savedProjects = dashboardData?.savedProjects ?? [];
+    const finalizedLayouts = dashboardData?.finalizedLayouts ?? [];
+    const userSolutions = dashboardData?.userSolutions ?? [];
+    const savedRecommendations = dashboardData?.savedRecommendations ?? [];
+    const currentUser = dashboardData?.user;
+    const debugInfo = dashboardData?.debugInfo;
     console.log('🔍 Saved Recommendations:', savedRecommendations);
     console.log('🔍 Recommendations length:', savedRecommendations.length);
     const updateLayoutStatus = useMutation(api.finalizedLayouts.updateFinalizedLayout);
+     // Debug logs
+     useEffect(() => {
+        if (dashboardData) {
+            console.log('📊 Dashboard Data Loaded:', {
+                savedProjects: savedProjects.length,
+                finalizedLayouts: finalizedLayouts.length,
+                userSolutions: userSolutions.length,
+                savedRecommendations: savedRecommendations.length,
+                currentUser: currentUser?.email,
+                debugInfo
+            });
+        }
+    }, [dashboardData, savedProjects, finalizedLayouts, userSolutions, savedRecommendations, currentUser, debugInfo]);
     // ✅ Early return AFTER all hooks (hooks must be called unconditionally)
     useEffect(() => {
         console.log('📊 Dashboard Data:', {
@@ -1014,16 +1057,43 @@ const Dashboard = () => {
     
         return () => clearTimeout(timeoutId);
     }, [savedProjects, finalizedLayouts, selectedProjectId, selectedProjectType]);
-    if (!isLoaded || savedProjects === undefined || finalizedLayouts === undefined) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-orange-400" />
-                    <p className="text-muted-foreground">Loading your dashboard...</p>
-                </div>
+    // Then use it:
+// ✅ Show loading while Clerk loads
+if (!isLoaded) {
+    return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-orange-400" />
+                <p className="text-lg font-semibold text-foreground mb-2">Initializing...</p>
+                <p className="text-sm text-muted-foreground">Setting up your session</p>
             </div>
-        );
-    }
+        </div>
+    );
+}
+
+// ✅ Show sign-in prompt
+if (!isSignedIn) {
+    return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+                <p className="text-muted-foreground mb-4">Please sign in to view your dashboard</p>
+            </div>
+        </div>
+    );
+}
+
+// ✅ Show loading while data loads
+/*if (!dashboardData) {
+    return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-orange-400" />
+                <p className="text-lg font-semibold text-foreground mb-2">Loading Dashboard...</p>
+                <p className="text-sm text-muted-foreground">Fetching your solar projects</p>
+            </div>
+        </div>
+    );
+}*/
     
     if (!isSignedIn) {
         return (

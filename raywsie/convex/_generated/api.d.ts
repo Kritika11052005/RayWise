@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as dashboard from "../dashboard.js";
 import type * as finalizedLayouts from "../finalizedLayouts.js";
 import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
@@ -32,6 +33,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  dashboard: typeof dashboard;
   finalizedLayouts: typeof finalizedLayouts;
   http: typeof http;
   notifications: typeof notifications;
