@@ -1083,7 +1083,7 @@ if (!isSignedIn) {
 }
 
 // ✅ Show loading while data loads
-/*if (!dashboardData) {
+if (!dashboardData) {
     return (
         <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="text-center">
@@ -1093,7 +1093,7 @@ if (!isSignedIn) {
             </div>
         </div>
     );
-}*/
+}
     
     if (!isSignedIn) {
         return (
