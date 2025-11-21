@@ -312,8 +312,8 @@ type SolarPlansResponse = {
     };
 } | null;
 const Dashboard = () => {
-    const { user } = useUser();
-    
+    const { user, isLoaded, isSignedIn } = useUser();
+
     const [activeTab, setActiveTab] = useState("overview");
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
@@ -329,26 +329,34 @@ const Dashboard = () => {
     const finalizedLayouts = useQuery(api.finalizedLayouts.getUserFinalizedLayouts) ?? [];
     const userSolutions = useQuery(api.recommendations.getUserSolutions) ?? [];
     const savedRecommendations = useQuery(api.savedRecommendations.getUserRecommendations, {}) ?? [];
+    const currentUser = useQuery(api.users.getCurrentUser);
+    const debugInfo = useQuery(api.savedProject.debugUser);
     console.log('🔍 Saved Recommendations:', savedRecommendations);
     console.log('🔍 Recommendations length:', savedRecommendations.length);
     const updateLayoutStatus = useMutation(api.finalizedLayouts.updateFinalizedLayout);
-    const currentUser = useQuery(api.users.getCurrentUser);
+    // ✅ Early return AFTER all hooks (hooks must be called unconditionally)
     useEffect(() => {
         console.log('📊 Dashboard Data:', {
+            isLoaded,
+            isSignedIn,
             savedProjectsLoading: savedProjects === undefined,
             savedProjectsCount: savedProjects?.length,
             finalizedLayoutsLoading: finalizedLayouts === undefined,
             finalizedLayoutsCount: finalizedLayouts?.length,
-            stats: stats,
-            hasData: stats.hasData
+            currentUser,
+            debugInfo
+        });
+    }, [isLoaded, isSignedIn, savedProjects, finalizedLayouts, currentUser, debugInfo]);
+
+    useEffect(() => {
+        console.log('🔍 Dashboard Debug:', {
+            savedProjects: savedProjects.length,
+            finalizedLayouts: finalizedLayouts.length,
+            hasProjects: savedProjects.length > 0 || finalizedLayouts.length > 0
         });
     }, [savedProjects, finalizedLayouts]);
-    const debugInfo = useQuery(api.savedProject.debugUser);
-    console.log('🔍 Dashboard Debug:', {
-        savedProjects: savedProjects.length,
-        finalizedLayouts: finalizedLayouts.length,
-        hasProjects: savedProjects.length > 0 || finalizedLayouts.length > 0
-    });
+    
+    
     useEffect(() => {
         const checkAuth = async () => {
             if (user) {
@@ -359,7 +367,7 @@ const Dashboard = () => {
                     convexUserId: currentUser?._id,
                     convexTokenIdentifier: currentUser?.tokenIdentifier
                 });
-                
+
                 // Try to manually fetch projects with debug info
                 console.log('📊 Current query results:', {
                     savedProjects: savedProjects,
@@ -948,11 +956,16 @@ const Dashboard = () => {
     // AI-powered ROI calculation - runs AFTER component is mounted
     useEffect(() => {
         const calculateROI = async () => {
+            // Don't calculate if queries are still loading
+            if (savedProjects === undefined || finalizedLayouts === undefined) {
+                return;
+            }
+            
             if (savedProjects.length === 0 && finalizedLayouts.length === 0) {
                 setAiRoiData(null);
                 return;
             }
-
+    
             setRoiLoading(true);
             try {
                 const selectedProject = selectedProjectId && selectedProjectType
@@ -960,7 +973,7 @@ const Dashboard = () => {
                         ? finalizedLayouts.find(l => l._id === selectedProjectId)
                         : savedProjects.find(p => p._id === selectedProjectId))
                     : null;
-
+    
                 const metrics = extractProjectMetrics(
                     selectedProject ?? null,
                     selectedProjectType,
@@ -968,7 +981,7 @@ const Dashboard = () => {
                     savedProjects,
                     userSolutions
                 );
-
+    
                 const roiResult = await calculateAIROI(metrics);
                 setAiRoiData(roiResult);
             } catch (error) {
@@ -983,32 +996,44 @@ const Dashboard = () => {
                 setRoiLoading(false);
             }
         };
-
+    
         const timeoutId = setTimeout(() => {
             calculateROI();
         }, 100);
-
+    
         return () => clearTimeout(timeoutId);
-    }, [
-        savedProjects.length,
-        finalizedLayouts.length,
-        userSolutions.length,
-        selectedProjectId,
-        selectedProjectType
-    ]);
+    }, [savedProjects, finalizedLayouts, userSolutions, selectedProjectId, selectedProjectType]);
     // Add useEffect to fetch predictions when data changes (around line 730, after ROI useEffect)
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            fetchPredictions();
+            // Only fetch if data is loaded
+            if (savedProjects !== undefined && finalizedLayouts !== undefined) {
+                fetchPredictions();
+            }
         }, 100);
-
+    
         return () => clearTimeout(timeoutId);
-    }, [
-        savedProjects.length,
-        finalizedLayouts.length,
-        selectedProjectId,
-        selectedProjectType
-    ]);
+    }, [savedProjects, finalizedLayouts, selectedProjectId, selectedProjectType]);
+    if (!isLoaded || savedProjects === undefined || finalizedLayouts === undefined) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-orange-400" />
+                    <p className="text-muted-foreground">Loading your dashboard...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    if (!isSignedIn) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-muted-foreground mb-4">Please sign in to view your dashboard</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">
@@ -1342,15 +1367,15 @@ const Dashboard = () => {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                        <div className="text-2xl font-bold">
-    {savedProjects === undefined || finalizedLayouts === undefined ? (
-        <Loader2 className="w-6 h-6 animate-spin" />
-    ) : stats.hasData ? (
-        `$${stats.monthlySavings.toLocaleString()}`
-    ) : (
-        "$0"
-    )}
-</div>
+                                            <div className="text-2xl font-bold">
+                                                {savedProjects === undefined || finalizedLayouts === undefined ? (
+                                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                                ) : stats.hasData ? (
+                                                    `$${stats.monthlySavings.toLocaleString()}`
+                                                ) : (
+                                                    "$0"
+                                                )}
+                                            </div>
                                             <p className="text-xs text-muted-foreground">
                                                 {stats.hasData ? (
                                                     stats.savingsGrowth > 0 ? (
@@ -1376,15 +1401,15 @@ const Dashboard = () => {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                        <div className="text-2xl font-bold">
-    {savedProjects === undefined || finalizedLayouts === undefined ? (
-        <Loader2 className="w-6 h-6 animate-spin" />
-    ) : stats.hasData ? (
-        `${stats.co2Avoided.toLocaleString()} kg`
-    ) : (
-        "0 kg"
-    )}
-</div>
+                                            <div className="text-2xl font-bold">
+                                                {savedProjects === undefined || finalizedLayouts === undefined ? (
+                                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                                ) : stats.hasData ? (
+                                                    `${stats.co2Avoided.toLocaleString()} kg`
+                                                ) : (
+                                                    "0 kg"
+                                                )}
+                                            </div>
                                             <p className="text-xs text-muted-foreground">
                                                 {stats.hasData
                                                     ? "This month"
