@@ -1,8 +1,6 @@
 // lib/roiCalculator.ts
 // Utility functions for AI-powered ROI calculation
 
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_DASHBOARD;
-
 interface ProjectMetrics {
   totalSystemCost: number;
   annualSavings: number;
